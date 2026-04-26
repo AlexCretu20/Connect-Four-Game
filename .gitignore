@@ -4,3 +4,5 @@ dist/
 build/
 .idea/
 npm-debug.log*
+.env
+server/.env
