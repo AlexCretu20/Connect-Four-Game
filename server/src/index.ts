@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { pool } from './db/db';
+import { authRouter } from './auth/auth.router';
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ const server = http.createServer(app);
 // Basic middlewares
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
+app.use('/api/auth', authRouter);
 
 // Initialize Socket.io for the upcoming game
 export const io = new Server(server, {
