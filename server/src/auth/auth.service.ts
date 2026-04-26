@@ -22,14 +22,16 @@ export class AuthService {
 
     // US-102: Login with identifier (email OR username) and password
     async login(identifier: string, password: string) {
-        const query = `SELECT * FROM users WHERE email = $1 OR username = $1;`;
-        const result = await pool.query(query, [identifier]);
+        const query = `SELECT * FROM users WHERE email = $1 OR username = $2;`;
+        const result = await pool.query(query, [identifier, identifier]);
+
 
         if (result.rows.length === 0) {
             throw new Error('User not found');
         }
 
         const user = result.rows[0];
+
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
         if (!isMatch) {
