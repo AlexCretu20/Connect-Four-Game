@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { pool } from './db/db';
 import { authRouter } from './auth/auth.router';
+import { ConnectFourGame } from './game/game.engine';
 
 dotenv.config();
 
@@ -29,12 +30,71 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Connect Four server is running perfectly!' });
 });
 
-// Players will connect here later
+let waitingPlayer: any = null;
+const activeGames = new Map<string, ConnectFourGame>();
+
 io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    console.log(`A player connected: ${socket.id}`);
+
+    socket.on('find_match', () => {
+
+        if (waitingPlayer && waitingPlayer.id !== socket.id) {
+
+            const roomId = `room_${waitingPlayer.id}_${socket.id}`;
+
+            // private room with id user1 and user2
+            socket.join(roomId);
+            waitingPlayer.join(roomId);
+
+            const game = new ConnectFourGame();
+            activeGames.set(roomId, game);
+
+            io.to(roomId).emit('game_started', {
+                roomId: roomId,
+                message: 'Match started!',
+                startingPlayer: game.currentPlayer
+            });
+
+            waitingPlayer = null;
+        } else {
+            waitingPlayer = socket;
+            socket.emit('waiting_for_opponent', { message: 'Waiting for an opponent...' });
+        }
+    });
+
+
+    socket.on('make_move', ({ roomId, column }) => {
+        const game = activeGames.get(roomId);
+        if (!game) return; // If the match doesn't exist, do nothing
+
+        const result = game.dropPiece(column);
+
+        if (result.success) {
+            io.to(roomId).emit('board_updated', {
+                board: game.getBoard(),
+                nextPlayer: game.currentPlayer,
+                lastRow: result.row,
+                lastCol: column
+            });
+            if (result.win) {
+                io.to(roomId).emit('game_over', { winner: game.winner });
+                activeGames.delete(roomId);
+            }
+
+            else if (result.draw) {
+                io.to(roomId).emit('game_over', { winner: 'draw' });
+                activeGames.delete(roomId);
+            }
+        }
+    });
 
     socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`);
+        console.log(` Player disconnected: ${socket.id}`);
+        // If they were in the waiting room and left, free the spot
+        if (waitingPlayer && waitingPlayer.id === socket.id) {
+            waitingPlayer = null;
+        }
+        // add logic for match abandonment
     });
 });
 
