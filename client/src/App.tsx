@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { LobbyPage } from './pages/LobbyPage';
+import {GamePage} from './pages/GamePage';
 
-// Păstrăm placeholderele pentru restul paginilor deocamdată
-const LobbyPage = () => <div style={{ padding: 20 }}><h1>Sala de Așteptare (Lobby)</h1></div>;
-const GamePage = () => <div style={{ padding: 20 }}><h1>Tabla de Joc</h1></div>;
+
 
 function App() {
     return (
