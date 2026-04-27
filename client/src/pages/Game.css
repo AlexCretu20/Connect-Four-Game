@@ -1,0 +1,62 @@
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 40px;
+    min-height: 100vh;
+    background-color: #f0f2f5;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.game-header {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.status-box {
+    margin-top: 15px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.board {
+    background-color: #2563eb; /* Albastru Connect Four */
+    padding: 10px;
+    border-radius: 12px;
+    display: inline-block;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.row {
+    display: flex;
+}
+
+.cell {
+    width: 60px;
+    height: 60px;
+    background-color: white;
+    border-radius: 50%; /* Face pătratele rotunde */
+    margin: 5px;
+    cursor: pointer;
+    box-shadow: inset 0 4px 6px rgba(0,0,0,0.4); /* Efect de adâncime */
+    transition: background-color 0.3s;
+}
+
+/* Dacă e rândul tău, arată un hover discret */
+.cell.can-click:hover {
+    background-color: #e5e7eb;
+}
+
+.cell.player1 {
+    background-color: #ef4444; /* Roșu */
+    cursor: default;
+}
+
+.cell.player2 {
+    background-color: #eab308; /* Galben */
+    cursor: default;
+}
