@@ -160,6 +160,9 @@ io.on('connection', (socket) => {
                 initialBoard: game.getBoard() // Forțăm trimiterea matricei 6x7
             };
 
+            (waitingPlayer as any).currentRoom = roomId;
+            (socket as any).currentRoom = roomId;
+
             waitingPlayer.emit('game_started', { ...startData, yourPlayerId: 1 });
             socket.emit('game_started', { ...startData, yourPlayerId: 2 });
 
@@ -263,18 +266,20 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log(`Player disconnected: ${socket.id}`);
 
-        // Resetăm waitingPlayer dacă el a plecat
+        // 1. Dacă era în așteptare, eliberăm locul
         if (waitingPlayer && waitingPlayer.id === socket.id) {
             waitingPlayer = null;
+            console.log("Jucătorul din coadă a plecat.");
         }
 
-        // Gestionăm abandonul meciului
-        for (const [roomId, game] of activeGames.entries()) {
-            if (roomId.includes(socket.id)) {
-                io.to(roomId).emit('opponent_disconnected');
-                activeGames.delete(roomId);
-                break;
-            }
+        // 2. Extragem camera în care juca (am salvat-o când a găsit meciul)
+        const currentRoom = (socket as any).currentRoom;
+
+        // 3. Dacă juca într-o cameră activă, o închidem și ștergem meciul
+        if (currentRoom && activeGames.has(currentRoom)) {
+            io.to(currentRoom).emit('opponent_disconnected');
+            activeGames.delete(currentRoom);
+            console.log(`🧹 Meciul ${currentRoom} a fost șters din Live pentru că un jucător s-a deconectat.`);
         }
     });
 });
