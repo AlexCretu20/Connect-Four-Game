@@ -98,6 +98,14 @@ export const LobbyPage = () => {
                     Vezi Clasamentul
                 </button>
 
+                <button
+                    onClick={() => navigate('/history')}
+                    className="submit-button"
+                    style={{ marginTop: '12px', backgroundColor: '#4b5563' }}
+                >
+                    Istoric Meciuri
+                </button>
+
             </div>
         </div>
     );
