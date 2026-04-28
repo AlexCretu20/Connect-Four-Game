@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { LobbyPage } from './pages/LobbyPage';
 import {GamePage} from './pages/GamePage';
+import {LeaderboardPage} from "./pages/LeaderboardPage.tsx";
 
 
 
@@ -18,6 +19,8 @@ function App() {
 
                 <Route path="/lobby" element={<LobbyPage />} />
                 <Route path="/game" element={<GamePage />} />
+
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>

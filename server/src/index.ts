@@ -36,10 +36,15 @@ const activeGames = new Map<string, ConnectFourGame>();
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
 
-    socket.on('find_match', () => {
+    socket.on('find_match', (data: { userId: number }) => {
+        (socket as any).databaseId = data.userId;
+
         // Verificăm dacă avem un jucător care așteaptă și dacă e încă conectat
         if (waitingPlayer && waitingPlayer.connected && waitingPlayer.id !== socket.id) {
-            const roomId = `room_${waitingPlayer.id}_${socket.id}`;
+            const p1Id = (waitingPlayer as any).databaseId;
+            const p2Id = (socket as any).databaseId;
+
+            const roomId = `room_${p1Id}_${p2Id}`;
 
             socket.join(roomId);
             waitingPlayer.join(roomId);
@@ -69,14 +74,17 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('make_move', ({ roomId, column }) => {
+    socket.on('make_move', async ({ roomId, column }) => {
         const game = activeGames.get(roomId);
-        if (!game) return;
+
+        if (!game) {
+            console.error("Jocul nu a fost găsit!");
+            return;
+        }
 
         const result = game.dropPiece(column);
 
         if (result.success) {
-            // Trimitem tabla actualizată către TOATĂ camera
             io.to(roomId).emit('board_updated', {
                 board: game.getBoard(),
                 nextPlayer: game.currentPlayer,
@@ -84,11 +92,26 @@ io.on('connection', (socket) => {
                 lastCol: column
             });
 
-            if (result.win) {
+            if (result.win || result.draw) {
+                try {
+                    const ids = roomId.replace('room_', '').split('_');
+                    const p1Id = parseInt(ids[0]);
+                    const p2Id = parseInt(ids[1]);
+
+                    const winnerId = result.win ? (game.winner === 1 ? p1Id : p2Id) : null;
+
+                    console.log(`SALVARE MECI: P1:${p1Id}, P2:${p2Id}, Câștigător:${winnerId}, Mutări:${game.moveCount}`);
+                    await pool.query(
+                        `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status) 
+                     VALUES ($1, $2, $3, $4, $5)`,
+                        [p1Id, p2Id, winnerId, game.moveCount, result.win ? 'finished' : 'draw']
+                    );
+                    console.log("Meci salvat cu succes pentru leaderboard!");
+                } catch (dbError) {
+                    console.error("Eroare la salvarea meciului:", dbError);
+                }
+
                 io.to(roomId).emit('game_over', { winner: game.winner });
-                activeGames.delete(roomId);
-            } else if (result.draw) {
-                io.to(roomId).emit('game_over', { winner: 'draw' });
                 activeGames.delete(roomId);
             }
         }

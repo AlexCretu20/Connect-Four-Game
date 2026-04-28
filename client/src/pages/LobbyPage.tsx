@@ -48,9 +48,12 @@ export const LobbyPage = () => {
     }, [navigate]);
 
     const handleFindMatch = () => {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = storedUser.id;
+
         setError('');
         setIsSearching(true);
-        socket.emit('find_match');
+        socket.emit('find_match', { userId });
 
         // Pornim un timer de 30 de secunde (30000 ms)
         timeoutRef.current = setTimeout(() => {
@@ -78,14 +81,23 @@ export const LobbyPage = () => {
 
                 {isSearching ? (
                     <div className="searching-box">
-                        <p>⏳ Se caută un adversar...</p>
+                        <p>Se caută un adversar...</p>
                         <small>Așteaptă maxim 30 de secunde.</small>
                     </div>
                 ) : (
                     <button onClick={handleFindMatch} className="submit-button" style={{ width: '100%' }}>
-                        {error ? 'Reîncearcă căutarea' : '🎮 Caută un meci (1v1)'}
+                        {error ? 'Reîncearcă căutarea' : 'Caută un meci (1v1)'}
                     </button>
                 )}
+
+                <button
+                    onClick={() => navigate('/leaderboard')}
+                    className="submit-button"
+                    style={{ marginTop: '12px', backgroundColor: '#6b7280' }} // Un gri pentru contrast
+                >
+                    Vezi Clasamentul
+                </button>
+
             </div>
         </div>
     );
