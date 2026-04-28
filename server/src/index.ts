@@ -140,6 +140,20 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('join_as_spectator', (roomId: string) => {
+        socket.join(roomId); // Intră în camera live (ex: room_1_2)
+        console.log(`Utilizatorul ${socket.id} este spectator la meciul live: ${roomId}`);
+
+        // Când intră un spectator la jumătatea meciului, îi trimitem tabla cum arată acum
+        const game = activeGames.get(roomId);
+        if (game) {
+            socket.emit('initial_spectator_state', {
+                board: game.getBoard(),
+                nextPlayer: game.currentPlayer
+            });
+        }
+    });
+
     socket.on('make_move', async ({ roomId, column }) => {
         const game = activeGames.get(roomId);
 
@@ -156,6 +170,12 @@ io.on('connection', (socket) => {
                 nextPlayer: game.currentPlayer,
                 lastRow: result.row,
                 lastCol: column
+            });
+
+            io.to(roomId).emit('move_received', {
+                col: column,
+                playerIndex: game.currentPlayer === 1 ? 2 : 1,
+                moveNumber: game.moveHistory.length
             });
 
             if (result.win || result.draw) {
@@ -194,6 +214,10 @@ io.on('connection', (socket) => {
                     console.error("Eroare la salvarea meciului/mutărilor:", dbError);
                 }
                 io.to(roomId).emit('game_over', { winner: game.winner });
+                io.to(roomId).emit('match_ended', {
+                    status: result.win ? 'finished' : 'draw',
+                    winner: game.winner
+                });
                 activeGames.delete(roomId);
             }
         }
