@@ -7,10 +7,28 @@ export const LobbyPage = () => {
     const navigate = useNavigate();
     const [isSearching, setIsSearching] = useState(false);
     const [user, setUser] = useState<{username: string} | null>(null);
-    const [error, setError] = useState(''); // Stare pentru timeout/erori
-
-    // Folosim un ref pentru a păstra ID-ul timerului între randări
+    const [error, setError] = useState('');
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [liveMatches, setLiveMatches] = useState<any[]>([]);
+
+    // fct pt spectator mode
+    const fetchLiveMatches = () => {
+        fetch('http://localhost:5000/api/matchesLive')
+            .then(res => {
+                if (!res.ok) throw new Error("Nu am putut aduce meciurile");
+                return res.json();
+            })
+            .then(data => setLiveMatches(data))
+            .catch(err => console.error("Eroare meciuri live:", err));
+    };
+
+    // Actualizare la 5 s ca spectatorul sa nu piarda nimic
+    useEffect(() => {
+        fetchLiveMatches();
+        const interval = setInterval(fetchLiveMatches, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -24,17 +42,16 @@ export const LobbyPage = () => {
         });
 
         socket.on('game_started', (data) => {
-            // DACĂ GĂSIM MECI: Oprim timerul imediat!
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
-
             setIsSearching(false);
             navigate('/game', {
                 state: {
                     roomId: data.roomId,
                     startingPlayer: data.startingPlayer,
-                    yourPlayerId: data.yourPlayerId
+                    yourPlayerId: data.yourPlayerId,
+                    initialBoard: data.initialBoard
                 }
             });
         });
@@ -42,10 +59,10 @@ export const LobbyPage = () => {
         return () => {
             socket.off('waiting_for_opponent');
             socket.off('game_started');
-            // Curățăm timerul dacă utilizatorul pleacă de pe pagină
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, [navigate]);
+
 
     const handleFindMatch = () => {
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -55,19 +72,15 @@ export const LobbyPage = () => {
         setIsSearching(true);
         socket.emit('find_match', { userId });
 
-        // Pornim un timer de 30 de secunde (30000 ms)
         timeoutRef.current = setTimeout(() => {
             setIsSearching(false);
             setError('Căutarea a expirat. Nu a fost găsit niciun adversar online.');
-
-            // Opțional: Putem anunța și serverul că acest jucător nu mai caută
-            // socket.emit('cancel_search');
         }, 30000);
     };
 
     return (
-        <div className="login-container">
-            <div className="login-card" style={{ textAlign: 'center' }}>
+        <div className="login-container" style={{ paddingBottom: '50px' }}>
+            <div className="login-card" style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}>
                 <h2 className="login-title">Sala de Așteptare</h2>
 
                 {user && !isSearching && (
@@ -76,7 +89,6 @@ export const LobbyPage = () => {
                     </p>
                 )}
 
-                {/* Mesaj de eroare/timeout */}
                 {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
 
                 {isSearching ? (
@@ -93,7 +105,7 @@ export const LobbyPage = () => {
                 <button
                     onClick={() => navigate('/leaderboard')}
                     className="submit-button"
-                    style={{ marginTop: '12px', backgroundColor: '#6b7280' }} // Un gri pentru contrast
+                    style={{ marginTop: '12px', backgroundColor: '#6b7280', width: '100%' }}
                 >
                     Vezi Clasamentul
                 </button>
@@ -101,11 +113,73 @@ export const LobbyPage = () => {
                 <button
                     onClick={() => navigate('/history')}
                     className="submit-button"
-                    style={{ marginTop: '12px', backgroundColor: '#4b5563' }}
+                    style={{ marginTop: '12px', backgroundColor: '#4b5563', width: '100%' }}
                 >
                     Istoric Meciuri
                 </button>
 
+                {/* ==================================================== */}
+                {/* SECȚIUNEA NOUĂ PENTRU MECIURI LIVE (SPECTATOR MODE)  */}
+                {/* ==================================================== */}
+                <div style={{ marginTop: '40px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <h3 style={{ color: '#ef4444', margin: 0 }}> Meciuri Live</h3>
+                        <button
+                            onClick={fetchLiveMatches}
+                            style={{
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '4px'
+                            }}
+                        >
+                            🔄 Refresh
+                        </button>
+                    </div>
+
+                    {liveMatches.length === 0 ? (
+                        <div style={{ padding: '20px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: '8px', textAlign: 'center', color: '#6b7280' }}>
+                            Nu se joacă niciun meci momentan.<br/>Fii tu primul!
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {liveMatches.map((match) => (
+                                <div key={match.roomId} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    background: '#ffffff', padding: '12px', borderRadius: '8px',
+                                    border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                    textAlign: 'left'
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: '15px' }}>
+                                            <strong>{match.p1Name}</strong> <span style={{color: '#9ca3af', fontSize: '13px'}}>vs</span> <strong>{match.p2Name}</strong>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                                            Mutări jucate: {match.moveCount}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate(`/spectate/${match.roomId}`)}
+                                        style={{
+                                            background: '#ef4444',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            fontSize: '13px'
+                                        }}
+                                    >
+                                        Watch
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

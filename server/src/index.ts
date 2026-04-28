@@ -99,17 +99,52 @@ app.get('/api/matchesReplay/:id', async (req, res) => {
     }
 });
 
+// ruta spectator
+app.get('/api/matchesLive', async (req, res) => {
+    try {
+        const liveMatches = [];
+
+        // Parcurgem toate camerele active (ex: room_1_2)
+        for (const [roomId, game] of activeGames.entries()) {
+            const ids = roomId.replace('room_', '').split('_');
+            const p1Id = parseInt(ids[0]);
+            const p2Id = parseInt(ids[1]);
+
+            // Luăm numele jucătorilor din baza de date pentru a le afișa frumos
+            const result = await pool.query(
+                `SELECT id, username FROM users WHERE id IN ($1, $2)`,
+                [p1Id, p2Id]
+            );
+
+            const users = result.rows;
+            const p1 = users.find(u => u.id === p1Id)?.username || 'Jucător 1';
+            const p2 = users.find(u => u.id === p2Id)?.username || 'Jucător 2';
+
+            liveMatches.push({
+                roomId: roomId,
+                p1Name: p1,
+                p2Name: p2,
+                moveCount: game.moveCount
+            });
+        }
+
+        res.json(liveMatches);
+    } catch (err) {
+        console.error("Eroare la preluarea meciurilor live:", err);
+        res.status(500).json({ error: "Nu am putut încărca meciurile live." });
+    }
+});
+
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
 
     socket.on('find_match', (data: { userId: number }) => {
         (socket as any).databaseId = data.userId;
 
-        // Verificăm dacă avem un jucător care așteaptă și dacă e încă conectat
-        if (waitingPlayer && waitingPlayer.connected && waitingPlayer.id !== socket.id) {
+        // Verificăm dacă avem un adversar valid (ID diferit)
+        if (waitingPlayer && (waitingPlayer as any).databaseId !== data.userId) {
             const p1Id = (waitingPlayer as any).databaseId;
-            const p2Id = (socket as any).databaseId;
-
+            const p2Id = data.userId;
             const roomId = `room_${p1Id}_${p2Id}`;
 
             socket.join(roomId);
@@ -118,20 +153,18 @@ io.on('connection', (socket) => {
             const game = new ConnectFourGame();
             activeGames.set(roomId, game);
 
-            // TRIMITEM AICI datele de început, NU în make_move
-            waitingPlayer.emit('game_started', {
+            // TRIMITEM DATELE COMPLETE, INCLUSIV TABLA INIȚIALĂ
+            const startData = {
                 roomId: roomId,
-                message: 'Match started!',
                 startingPlayer: game.currentPlayer,
-                yourPlayerId: 1
-            });
+                initialBoard: game.getBoard() // Forțăm trimiterea matricei 6x7
+            };
 
-            socket.emit('game_started', {
-                roomId: roomId,
-                message: 'Match started!',
-                startingPlayer: game.currentPlayer,
-                yourPlayerId: 2
-            });
+            (waitingPlayer as any).currentRoom = roomId;
+            (socket as any).currentRoom = roomId;
+
+            waitingPlayer.emit('game_started', { ...startData, yourPlayerId: 1 });
+            socket.emit('game_started', { ...startData, yourPlayerId: 2 });
 
             waitingPlayer = null;
         } else {
@@ -165,6 +198,13 @@ io.on('connection', (socket) => {
         const result = game.dropPiece(column);
 
         if (result.success) {
+            const boardData = {
+                board: game.getBoard(),
+                nextPlayer: game.currentPlayer,
+                lastRow: result.row,
+                lastCol: column
+            };
+            console.log('Data trimisa catre clienti:', boardData);
             io.to(roomId).emit('board_updated', {
                 board: game.getBoard(),
                 nextPlayer: game.currentPlayer,
@@ -226,18 +266,20 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log(`Player disconnected: ${socket.id}`);
 
-        // Resetăm waitingPlayer dacă el a plecat
+        // 1. Dacă era în așteptare, eliberăm locul
         if (waitingPlayer && waitingPlayer.id === socket.id) {
             waitingPlayer = null;
+            console.log("Jucătorul din coadă a plecat.");
         }
 
-        // Gestionăm abandonul meciului
-        for (const [roomId, game] of activeGames.entries()) {
-            if (roomId.includes(socket.id)) {
-                io.to(roomId).emit('opponent_disconnected');
-                activeGames.delete(roomId);
-                break;
-            }
+        // 2. Extragem camera în care juca (am salvat-o când a găsit meciul)
+        const currentRoom = (socket as any).currentRoom;
+
+        // 3. Dacă juca într-o cameră activă, o închidem și ștergem meciul
+        if (currentRoom && activeGames.has(currentRoom)) {
+            io.to(currentRoom).emit('opponent_disconnected');
+            activeGames.delete(currentRoom);
+            console.log(`🧹 Meciul ${currentRoom} a fost șters din Live pentru că un jucător s-a deconectat.`);
         }
     });
 });

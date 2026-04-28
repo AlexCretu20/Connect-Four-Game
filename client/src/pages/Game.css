@@ -1,3 +1,4 @@
+/* CONTAINERUL PAGINII */
 .game-container {
     display: flex;
     flex-direction: column;
@@ -9,7 +10,7 @@
 }
 
 .game-header {
-    margin-bottom: 30px;
+    margin-bottom: 25px;
     text-align: center;
 }
 
@@ -20,174 +21,58 @@
     font-size: 18px;
     font-weight: bold;
     background: white;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
+/* TABLA DE JOC (PARTEA ALBASTRĂ) */
 .board {
-    background-color: #2563eb; /* Albastru Connect Four */
-    padding: 10px;
-    border-radius: 12px;
-    display: inline-block;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-}
+    background-color: #2563eb;
+    padding: 15px;
+    border-radius: 15px;
 
-.row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(7, 50px);
+    grid-template-rows: repeat(6, 50px);
+    gap: 8px;
+
+    width: fit-content;
+    margin: 20px auto;
 }
 
 .cell {
-    width: 60px;
-    height: 60px;
-    background-color: white;
-    border-radius: 50%; /* Face pătratele rotunde */
-    margin: 5px;
-    cursor: pointer;
-    box-shadow: inset 0 4px 6px rgba(0,0,0,0.4); /* Efect de adâncime */
-    transition: background-color 0.3s;
+    width: 50px;
+    height: 50px;
+    min-width: 50px;   /* 🔥 IMPORTANT */
+    min-height: 50px;  /* 🔥 IMPORTANT */
 }
-
-/* Dacă e rândul tău, arată un hover discret */
+/* HOVER ȘI JUCĂTORI */
 .cell.can-click:hover {
     background-color: #e5e7eb;
 }
 
 .cell.player1 {
     background-color: #ef4444; /* Roșu */
-    cursor: default;
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.2);
 }
 
 .cell.player2 {
     background-color: #eab308; /* Galben */
-    cursor: default;
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.2);
 }
 
-.leaderboard-container {
-    padding: 40px 20px;
-    display: flex;
-    justify-content: center;
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-    min-height: 100vh;
-}
-
-.leaderboard-card {
-    background: white;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 900px;
-}
-
-.leaderboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    border-bottom: 2px solid #f3f4f6;
-    padding-bottom: 15px;
-}
-
-.leaderboard-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px; /* Creează efectul de rânduri plutitoare */
-}
-
-.leaderboard-table th {
-    padding: 12px;
-    color: #6b7280;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-    text-align: left;
-}
-
-.leaderboard-table tr {
-    transition: transform 0.2s;
-}
-
-.leaderboard-table tbody tr:hover {
-    transform: scale(1.01);
-    background-color: #f9fafb;
-}
-
-.leaderboard-table td {
-    padding: 16px 12px;
-    background-color: #ffffff;
-    border-top: 1px solid #f3f4f6;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-/* Stil pentru primul rând (colțuri rotunjite) */
-.leaderboard-table td:first-child {
-    border-left: 1px solid #f3f4f6;
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    font-weight: bold;
-}
-
-.leaderboard-table td:last-child {
-    border-right: 1px solid #f3f4f6;
-    border-top-right-radius: 8px;
-    border-bottom-right-radius: 8px;
-}
-
-/* Medalii pentru locurile 1, 2, 3 */
-.rank-badge {
-    display: inline-block;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 28px;
-    margin-right: 10px;
-    font-size: 0.8rem;
-}
-
-.rank-1 { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-.rank-2 { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
-.rank-3 { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
-
-.stat-win { color: #16a34a; font-weight: 700; }
-.stat-loss { color: #dc2626; font-weight: 600; }
-.stat-neutral { color: #4b5563; }
-
-.back-link {
-    background-color: transparent;
-    color: #4b5563; /* Un gri închis profesional */
-    border: 1px solid #d1d5db;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px; /* Spațiu între săgeată și text */
-    transition: all 0.2s ease;
-    font-size: 14px;
-}
-
-.back-link:hover {
-    background-color: #f9fafb;
-    border-color: #9ca3af;
-    color: #111827;
-    transform: translateX(-3px); /* Un mic efect de mișcare spre stânga */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-
-.back-link-primary {
+/* BUTONUL DE IEȘIRE */
+.submit-button {
     background-color: #2563eb;
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
-.back-link-primary:hover {
-    background-color: #1d4ed8;
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
