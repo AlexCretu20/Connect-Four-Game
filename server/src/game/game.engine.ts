@@ -4,6 +4,7 @@ export class ConnectFourGame {
     public winner: number | null = null;
     private readonly ROWS = 6;
     private readonly COLS = 7;
+    public moveCount: number = 0;
 
     constructor() {
         this.board = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(0));
@@ -17,6 +18,7 @@ export class ConnectFourGame {
         for (let row = this.ROWS - 1; row >= 0; row--) {
             if (this.board[row][col] === 0) {
                 this.board[row][col] = this.currentPlayer;
+                this.moveCount += 1;
 
                 const isWin = this.checkWin(row, col);
                 const isDraw = this.checkDraw();
