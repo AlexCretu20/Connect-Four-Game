@@ -6,18 +6,20 @@ import './Game.css';
 export const GamePage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const [opponentLeft, setOpponentLeft] = useState(false);
 
-    // Preluăm datele (inclusiv ID-ul nostru) din Lobby
-    const { roomId, startingPlayer, yourPlayerId } = location.state || {};
+    // Extragem datele cu fallback pentru a preveni erorile
+    const { roomId, startingPlayer, yourPlayerId, initialBoard } = location.state || {};
 
     const ROWS = 6;
     const COLS = 7;
-    // Tabla e o matrice plină cu 0 la început
-    const [board, setBoard] = useState<number[][]>(
-        Array.from({ length: ROWS }, () => Array(COLS).fill(0))
-    );
 
+    // Inițializăm cu ce vine de la server SAU cu o tablă proaspătă 6x7
+    const [board, setBoard] = useState<number[][]>(() => {
+        if (initialBoard && initialBoard.length > 0) return initialBoard;
+        return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    });
+
+    const [opponentLeft, setOpponentLeft] = useState(false);
     const [currentPlayer, setCurrentPlayer] = useState<number>(startingPlayer || 1);
     const [winner, setWinner] = useState<number | 'draw' | null>(null);
 
@@ -65,6 +67,10 @@ export const GamePage = () => {
 
     const isMyTurn = currentPlayer === yourPlayerId && winner === null;
 
+    console.log('Board:', board);
+    console.log('Board length:', board?.length);
+    console.log('Row 0 length:', board?.[0]?.length);
+
     return (
         <div className="game-container">
             {/* 1. ANTETUL: Titlul și Mesajele de stare (Câștig/Rândul tău/Abandon) */}
@@ -95,24 +101,23 @@ export const GamePage = () => {
 
             {/* 2. TABLA DE JOC: Grila de 6x7 celule */}
             <div className="board">
-                {board.map((row, rowIndex) => (
-                    <div key={rowIndex} className="row">
-                        {row.map((cellValue, colIndex) => {
-                            let cellClass = "cell";
-                            if (cellValue === 1) cellClass += " player1";
-                            if (cellValue === 2) cellClass += " player2";
-                            if (cellValue === 0 && isMyTurn && !winner && !opponentLeft) cellClass += " can-click";
+                {board.flat().map((cellValue, index) => {
+                    const colIndex = index % 7;
 
-                            return (
-                                <div
-                                    key={`${rowIndex}-${colIndex}`}
-                                    className={cellClass}
-                                    onClick={() => handleColumnClick(colIndex)}
-                                />
-                            );
-                        })}
-                    </div>
-                ))}
+                    let cellClass = "cell";
+                    if (cellValue === 1) cellClass += " player1";
+                    if (cellValue === 2) cellClass += " player2";
+                    if (cellValue === 0 && isMyTurn && !winner && !opponentLeft)
+                        cellClass += " can-click";
+
+                    return (
+                        <div
+                            key={index}
+                            className={cellClass}
+                            onClick={() => handleColumnClick(colIndex)}
+                        />
+                    );
+                })}
             </div>
 
             {/* 3. BUTONUL DE IEȘIRE: Apare DOAR la final (Victorie normală SAU Abandon) */}
