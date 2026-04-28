@@ -6,6 +6,9 @@ export class ConnectFourGame {
     private readonly COLS = 7;
     public moveCount: number = 0;
 
+    // salvam istoric mutari
+    public moveHistory: { moveNumber: number, col: number, playerIndex: number }[] = [];
+
     constructor() {
         this.board = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(0));
         this.currentPlayer = Math.random() < 0.5 ? 1 : 2;
@@ -19,6 +22,12 @@ export class ConnectFourGame {
             if (this.board[row][col] === 0) {
                 this.board[row][col] = this.currentPlayer;
                 this.moveCount += 1;
+
+                this.moveHistory.push({
+                    moveNumber: this.moveCount,
+                    col: col,
+                    playerIndex: this.currentPlayer // Salvăm 1 sau 2
+                });
 
                 const isWin = this.checkWin(row, col);
                 const isDraw = this.checkDraw();
