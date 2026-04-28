@@ -11,6 +11,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const onlineUsers = new Map<number, string>();
 
 // Basic middlewares
 app.use(cors({ origin: 'http://localhost:5173' }));
@@ -135,8 +136,101 @@ app.get('/api/matchesLive', async (req, res) => {
     }
 });
 
+// ruta pt cautare jucatori
+app.get('/api/users/search', async (req, res) => {
+    const query = req.query.q as string;
+    if (!query) return res.json([]);
+
+    try {
+        // Căutăm jucători care conțin literele introduse (case-insensitive)
+        const result = await pool.query(
+            `SELECT id, username FROM users WHERE username ILIKE $1 LIMIT 10`,
+            [`%${query}%`]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Eroare la căutare" });
+    }
+});
+
+app.get('/api/users', async (req, res) => {
+    const { currentUserId } = req.query;
+    try {
+        // Luăm ultimii 20 de utilizatori înregistrați, excluzându-l pe cel curent
+        const result = await pool.query(
+            `SELECT id, username FROM users WHERE id != $1 ORDER BY id DESC LIMIT 20`,
+            [currentUserId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Eroare la preluarea jucătorilor" });
+    }
+});
+
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
+
+    socket.on('user_online', (userId: number) => {
+        onlineUsers.set(userId, socket.id);
+        (socket as any).databaseId = userId; // Salvăm pe socket pentru disconnect
+        console.log(`User ${userId} este online pe socket-ul ${socket.id}`);
+    });
+
+    socket.on('send_challenge', (data: { fromId: number, fromName: string, toId: number }) => {
+        const targetSocketId = onlineUsers.get(data.toId);
+
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('incoming_challenge', {
+                fromId: data.fromId,
+                fromName: data.fromName
+            });
+        } else {
+            socket.emit('challenge_failed', { message: 'Jucătorul nu este online în acest moment.' });
+        }
+    });
+
+    socket.on('accept_challenge', (data: { challengerId: number, myId: number }) => {
+        const challengerSocketId = onlineUsers.get(data.challengerId);
+
+        if (challengerSocketId) {
+            // Generăm numele camerei folosind cele două ID-uri
+            const roomId = `room_private_${data.challengerId}_${data.myId}`;
+
+            const game = new ConnectFourGame();
+            activeGames.set(roomId, game);
+
+            // Jucătorul care acceptă intră în cameră
+            socket.join(roomId);
+
+            // Jucătorul care a lansat provocarea intră și el
+            const challengerSocket = io.sockets.sockets.get(challengerSocketId);
+            if (challengerSocket) challengerSocket.join(roomId);
+
+            const startData = {
+                roomId: roomId,
+                startingPlayer: game.currentPlayer,
+                initialBoard: game.getBoard()
+            };
+
+            // Dăm start meciului!
+            io.to(challengerSocketId).emit('game_started', { ...startData, yourPlayerId: 1 });
+            socket.emit('game_started', { ...startData, yourPlayerId: 2 });
+        }
+    });
+
+    // Refuzarea provocării
+    socket.on('decline_challenge', (data: { challengerId: number, responderName: string }) => {
+        // Căutăm socket-ul celui care a trimis provocarea
+        const challengerSocketId = onlineUsers.get(data.challengerId);
+
+        if (challengerSocketId) {
+            // Îi trimitem mesajul înapoi cu 'challenge_declined'
+            io.to(challengerSocketId).emit('challenge_declined', {
+                responderName: data.responderName
+            });
+        }
+    });
 
     socket.on('find_match', (data: { userId: number }) => {
         (socket as any).databaseId = data.userId;
@@ -281,6 +375,12 @@ io.on('connection', (socket) => {
             activeGames.delete(currentRoom);
             console.log(`🧹 Meciul ${currentRoom} a fost șters din Live pentru că un jucător s-a deconectat.`);
         }
+
+        const dbId = (socket as any).databaseId;
+        if (dbId) {
+            onlineUsers.delete(dbId);
+        }
+
     });
 });
 
