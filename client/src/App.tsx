@@ -4,7 +4,8 @@ import { RegisterPage } from './pages/RegisterPage';
 import { LobbyPage } from './pages/LobbyPage';
 import {GamePage} from './pages/GamePage';
 import {LeaderboardPage} from "./pages/LeaderboardPage.tsx";
-
+import { MatchHistoryPage } from './pages/MatchHistoryPage';
+import { ReplayPage } from './pages/ReplayPage';
 
 
 function App() {
@@ -23,6 +24,9 @@ function App() {
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                 <Route path="*" element={<Navigate to="/login" replace />} />
+
+                <Route path="/history" element={<MatchHistoryPage />} />
+                <Route path="/replay/:matchId" element={<ReplayPage />} />
             </Routes>
         </BrowserRouter>
     );

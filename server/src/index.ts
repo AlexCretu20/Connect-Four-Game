@@ -33,7 +33,25 @@ app.get('/api/health', (req, res) => {
 let waitingPlayer: any = null;
 const activeGames = new Map<string, ConnectFourGame>();
 
-// Ruta istoric meci
+// ruta istoric meci
+app.get('/api/matches/history', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT m.id, m.total_moves, m.created_at, m.status,
+                    u1.username as p1_name, u2.username as p2_name
+             FROM matches m
+             LEFT JOIN users u1 ON m.player1_id = u1.id
+             LEFT JOIN users u2 ON m.player2_id = u2.id
+             ORDER BY m.created_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Eroare la baza de date (history):", err);
+        res.status(500).json({ error: "Nu am putut încărca istoricul." });
+    }
+});
+
+// Ruta replay
 app.get('/api/matchesReplay/:id', async (req, res) => {
     const matchId = parseInt(req.params.id);
 
@@ -44,7 +62,8 @@ app.get('/api/matchesReplay/:id', async (req, res) => {
     try {
         // detalii generale meci
         const matchResult = await pool.query(
-            `SELECT m.id, m.status, m.total_moves, 
+            `SELECT m.id, m.status, m.total_moves,
+                    m.player1_id, m.player2_id,
                     u1.username as player1_name, 
                     u2.username as player2_name,
                     w.username as winner_name
