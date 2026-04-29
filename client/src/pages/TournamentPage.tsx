@@ -120,7 +120,6 @@ export const TournamentsPage = () => {
 
             <div className="login-card" style={{ maxWidth: '600px', width: '100%' }}>
 
-                {/* 🔥 NOU: Am adăugat butonul de Refresh manual lângă titlu */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h2 className="login-title" style={{ margin: 0 }}>🏆 Turnee</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -130,8 +129,18 @@ export const TournamentsPage = () => {
                         <button onClick={() => navigate('/lobby')} style={{ background: '#6b7280', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
                             Înapoi
                         </button>
+
+                        <button
+                            onClick={() => navigate('/tournaments/history')}
+                            style={{ background: '#eab308', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            📜 Arhivă Turnee
+                        </button>
+
                     </div>
                 </div>
+
+
 
                 <div style={{ marginTop: '30px', padding: '20px', background: '#f3f4f6', borderRadius: '8px', border: '1px solid #d1d5db' }}>
                     <h3 style={{ marginTop: 0, color: '#374151' }}>Creează un turneu nou</h3>

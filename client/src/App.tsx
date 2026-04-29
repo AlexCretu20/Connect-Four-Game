@@ -9,6 +9,7 @@ import { ReplayPage } from './pages/ReplayPage';
 import { SpectatorPage } from './pages/SpectatorPage';
 import { TournamentsPage } from './pages/TournamentPage';
 import { TournamentBracketPage } from './pages/TournamentBracketPage';
+import {TournamentHistoryPage} from "./pages/TournamentHistoryPage.tsx";
 
 
 function App() {
@@ -17,7 +18,6 @@ function App() {
             <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
 
-                {/* Rutele noastre de autentificare */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
 
@@ -36,6 +36,7 @@ function App() {
                 <Route path="/tournaments" element={<TournamentsPage />} />
                 <Route path="/tournaments/:id/bracket" element={<TournamentBracketPage />} />
 
+                <Route path="/tournaments/history" element={<TournamentHistoryPage />} />
 
             </Routes>
         </BrowserRouter>

@@ -324,6 +324,30 @@ app.get('/api/tournament/:id/bracket', async (req, res) => {
     }
 });
 
+// ruta istoric meciuri
+// Ruta pentru istoricul global al turneelor
+app.get('/api/tournaments/history', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.id, t.name, t.created_at, u.username as winner_name
+            FROM tournaments t
+                     JOIN matches m ON t.id = m.tournament_id
+                     JOIN users u ON m.winner_id = u.id
+            WHERE t.status = 'finished'
+              AND m.tournament_round = (
+                SELECT MAX(tournament_round)
+                FROM matches
+                WHERE tournament_id = t.id
+            )
+            ORDER BY t.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Eroare la server" });
+    }
+});
+
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
 
