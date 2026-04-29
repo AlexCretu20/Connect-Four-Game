@@ -32,7 +32,7 @@ export const TournamentBracketPage = () => {
         };
 
         fetchBracket();
-        const interval = setInterval(fetchBracket, 3000); // 🔄 Dăm refresh mai des să vedem dacă s-a generat runda 2!
+        const interval = setInterval(fetchBracket, 3000);
 
         socket.on('waiting_for_tournament_opponent', (data) => {
             setIsWaiting(true);
@@ -56,7 +56,6 @@ export const TournamentBracketPage = () => {
         socket.emit('join_tournament_match', { matchId, userId: user?.id });
     };
 
-    // 🔥 GRUPĂM MECIURILE PE RUNDE
     const groupedMatches = matches.reduce((acc: any, match) => {
         const round = match.tournament_round;
         if (!acc[round]) acc[round] = [];
@@ -64,72 +63,76 @@ export const TournamentBracketPage = () => {
         return acc;
     }, {});
 
-    // Căutăm dacă există un câștigător final (adică meciul din ultima rundă are 'finished')
     const roundsArray = Object.keys(groupedMatches).map(Number).sort((a, b) => b - a);
     const maxRound = roundsArray[0] || 1;
     const isTournamentOver = groupedMatches[maxRound]?.[0]?.status === 'finished' && groupedMatches[maxRound]?.length === 1;
     const finalChampion = isTournamentOver ? groupedMatches[maxRound][0].winner_name : null;
 
     return (
-        <div className="login-container" style={{ paddingBottom: '50px' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', padding: '40px 20px' }}>
+
             {notification && (
                 <div style={{
                     position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', zIndex: 1000, fontWeight: 'bold'
+                    backgroundColor: 'white', border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)', padding: '15px 30px', borderRadius: '4px', zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold'
                 }}>
                     {notification.message}
                 </div>
             )}
 
-            <div className="login-card" style={{ maxWidth: '800px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h2 className="login-title" style={{ margin: 0 }}>🏆 Tabloul Campionatului</h2>
-                    <button onClick={() => navigate('/tournaments')} style={{ background: '#6b7280', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-                        Înapoi
+            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <div>
+                        <div className="section-title" style={{ marginBottom: '5px', border: 'none', padding: 0 }}>Desfasurare</div>
+                        <h1 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Tablou Campionat</h1>
+                    </div>
+                    <button onClick={() => navigate('/tournaments')} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 20px' }}>
+                        Inapoi la Turnee
                     </button>
                 </div>
 
                 {isTournamentOver && (
-                    <div style={{ textAlign: 'center', background: '#fef08a', padding: '20px', borderRadius: '12px', border: '2px solid #eab308', marginBottom: '30px' }}>
-                        <h2 style={{ margin: 0, color: '#ca8a04', fontSize: '28px' }}>🎉 Turneu Încheiat! 🎉</h2>
-                        <h3 style={{ margin: '10px 0 0 0', color: '#111827' }}>Campionul este: <strong>{finalChampion}</strong> 👑</h3>
+                    <div className="minimal-card" style={{ textAlign: 'center', marginBottom: '30px', background: '#f9fafb', borderColor: '#d1d5db' }}>
+                        <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-secondary)', marginBottom: '10px' }}>Turneu Finalizat</div>
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>Campion: {finalChampion}</h2>
                     </div>
                 )}
 
                 {matches.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '30px', color: '#6b7280', background: '#f9fafb', borderRadius: '8px' }}>
-                        Turneul nu a început încă.
+                    <div className="minimal-card" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                        Turneul nu a inceput inca.
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-
-                        {/* Randăm fiecare rundă în ordine inversă (de la Finală la Runda 1) */}
                         {roundsArray.map((roundNumber) => (
-                            <div key={roundNumber} style={{ border: '1px solid #d1d5db', padding: '20px', borderRadius: '12px', background: '#f9fafb' }}>
-                                <h3 style={{ margin: '0 0 15px 0', color: '#1d4ed8', borderBottom: '2px solid #bfdbfe', paddingBottom: '10px' }}>
-                                    {groupedMatches[roundNumber].length === 1 && roundNumber > 1 ? '🏆 FINALA' : `⚔️ Runda ${roundNumber}`}
-                                </h3>
+                            <div key={roundNumber} className="minimal-card" style={{ padding: '25px', background: 'white' }}>
+                                <div className="section-title" style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>
+                                    {groupedMatches[roundNumber].length === 1 && roundNumber > 1 ? 'Finala' : `Runda ${roundNumber}`}
+                                </div>
 
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
                                     {groupedMatches[roundNumber].map((match: any) => {
                                         const isMyMatch = match.p1_id === user?.id || match.p2_id === user?.id;
                                         const isPending = match.status === 'pending';
 
+                                        // Stil minimalist pentru meciurile tale versus celelalte
+                                        const cardBg = isMyMatch ? '#f8fafc' : 'white';
+                                        const cardBorder = isMyMatch ? '1px solid var(--text-primary)' : '1px solid var(--border-color)';
+
                                         return (
                                             <div key={match.match_id} style={{
                                                 flex: '1 1 300px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                border: isMyMatch ? '3px solid #3b82f6' : '1px solid #e5e7eb',
-                                                padding: '15px', borderRadius: '8px',
-                                                background: isMyMatch ? '#eff6ff' : 'white',
-                                                boxShadow: isMyMatch ? '0 4px 6px rgba(59, 130, 246, 0.2)' : 'none'
+                                                border: cardBorder, padding: '20px', borderRadius: '4px', background: cardBg
                                             }}>
                                                 <div>
-                                                    <div style={{ fontSize: '18px', fontWeight: match.winner_name === match.p1_name ? 'bold' : 'normal', color: match.winner_name === match.p1_name ? '#22c55e' : 'black' }}>
-                                                        {match.p1_name} {match.winner_name === match.p1_name && '👑'}
+                                                    <div style={{ fontSize: '16px', fontWeight: match.winner_name === match.p1_name ? 'bold' : 'normal', color: match.winner_name === match.p1_name ? '#16a34a' : 'var(--text-primary)' }}>
+                                                        {match.p1_name} {match.winner_name === match.p1_name && '(Câștigător)'}
                                                     </div>
-                                                    <div style={{ color: '#9ca3af', fontSize: '12px', margin: '4px 0' }}>VS</div>
-                                                    <div style={{ fontSize: '18px', fontWeight: match.winner_name === match.p2_name ? 'bold' : 'normal', color: match.winner_name === match.p2_name ? '#22c55e' : 'black' }}>
-                                                        {match.p2_name} {match.winner_name === match.p2_name && '👑'}
+                                                    <div style={{ color: 'var(--text-secondary)', fontSize: '11px', margin: '6px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>vs</div>
+                                                    <div style={{ fontSize: '16px', fontWeight: match.winner_name === match.p2_name ? 'bold' : 'normal', color: match.winner_name === match.p2_name ? '#16a34a' : 'var(--text-primary)' }}>
+                                                        {match.p2_name} {match.winner_name === match.p2_name && '(Câștigător)'}
                                                     </div>
                                                 </div>
 
@@ -138,13 +141,14 @@ export const TournamentBracketPage = () => {
                                                         <button
                                                             onClick={() => handlePlayMatch(match.match_id)}
                                                             disabled={isWaiting}
-                                                            style={{ background: isWaiting ? '#9ca3af' : '#22c55e', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: isWaiting ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                                                            className={isWaiting ? "btn-minimal btn-outline" : "btn-minimal btn-primary"}
+                                                            style={{ padding: '10px 20px', width: 'auto' }}
                                                         >
-                                                            {isWaiting ? 'Se așteaptă...' : 'JOACĂ'}
+                                                            {isWaiting ? 'Asteapta...' : 'Joaca'}
                                                         </button>
                                                     ) : (
-                                                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: match.status === 'finished' ? '#6b7280' : '#eab308' }}>
-                                                            {match.status === 'finished' ? 'Finalizat' : 'În Așteptare'}
+                                                        <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: match.status === 'finished' ? 'var(--text-secondary)' : '#eab308' }}>
+                                                            {match.status === 'finished' ? 'Finalizat' : 'In Asteptare'}
                                                         </div>
                                                     )}
                                                 </div>

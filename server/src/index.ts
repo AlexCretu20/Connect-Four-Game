@@ -405,10 +405,14 @@ io.on('connection', (socket) => {
 
             // Jucătorul care acceptă intră în cameră
             socket.join(roomId);
+            (socket as any).currentRoom = roomId; // 🔥 NOU: Salvăm camera pentru jucătorul curent
 
             // Jucătorul care a lansat provocarea intră și el
             const challengerSocket = io.sockets.sockets.get(challengerSocketId);
-            if (challengerSocket) challengerSocket.join(roomId);
+            if (challengerSocket) {
+                challengerSocket.join(roomId);
+                (challengerSocket as any).currentRoom = roomId; // 🔥 NOU: Salvăm camera și pentru adversar
+            }
 
             const startData = {
                 roomId: roomId,
@@ -419,6 +423,22 @@ io.on('connection', (socket) => {
             // Dăm start meciului!
             io.to(challengerSocketId).emit('game_started', { ...startData, yourPlayerId: 1 });
             socket.emit('game_started', { ...startData, yourPlayerId: 2 });
+        }
+    });
+
+    // Acum primim roomId direct de la client
+    socket.on('leave_match', (roomId: string) => {
+        if (roomId && activeGames.has(roomId)) {
+            console.log(`👋 Meci abandonat voluntar de un jucător în camera: ${roomId}`);
+
+            // 1. Anunțăm adversarul și toți spectatorii din acea cameră
+            io.to(roomId).emit('opponent_disconnected');
+
+            // 2. Ștergem meciul din memorie ca să dispară de pe Live Arena
+            activeGames.delete(roomId);
+
+            // 3. Curățăm referința de pe socket
+            (socket as any).currentRoom = null;
         }
     });
 

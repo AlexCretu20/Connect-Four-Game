@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
 import './Game.css';
+import './Auth.css';
 
 export const SpectatorPage = () => {
     const { roomId } = useParams();
     const navigate = useNavigate();
 
-    // Tabla de start (goală)
     const [board, setBoard] = useState<number[][]>(
         Array.from({ length: 6 }, () => Array(7).fill(0))
     );
 
-    const [status, setStatus] = useState('Se conectează la meci... ⏳');
+    const [status, setStatus] = useState('Se conecteaza la arena...');
     const [isGameOver, setIsGameOver] = useState(false);
 
     useEffect(() => {
@@ -21,36 +21,37 @@ export const SpectatorPage = () => {
             return;
         }
 
-        console.log(`🔌 Încercăm conectarea ca spectator la camera: ${roomId}`);
         socket.emit('join_as_spectator', roomId);
 
-        // 1. Starea inițială (dacă meciul era deja început)
+        // Cand spectatorul intra la jumatatea meciului
         socket.on('initial_spectator_state', (data) => {
-            console.log("📺 Am primit tabla inițială:", data);
             if (data.board) {
-                // Truc pentru a forța React să vadă schimbarea: deep copy
-                setBoard(JSON.parse(JSON.stringify(data.board)));
-                setStatus('LIVE 🔴');
+                setBoard(data.board);
+                setStatus('Meci in desfasurare (LIVE)');
             }
         });
 
-        // 2. La fiecare mutare făcută de jucători
+        // Cand un jucator face o mutare in timp real
         socket.on('board_updated', (data) => {
-            console.log("🔄 Update de mutare primit:", data);
             if (data.board) {
-                setBoard(JSON.parse(JSON.stringify(data.board)));
+                setBoard(data.board);
             }
         });
 
+        // Cand meciul se incheie normal
         socket.on('match_ended', (data) => {
-            console.log("🏁 Meciul s-a terminat:", data);
             setIsGameOver(true);
-            setStatus(data.status === 'draw' ? 'Meci terminat la egalitate! 🤝' : `Meci terminat! Jucătorul ${data.winner} a câștigat! 🏆`);
+            if (data.status === 'draw') {
+                setStatus('Meci incheiat: Egalitate.');
+            } else {
+                setStatus(`Meci incheiat: Jucatorul ${data.winner} a castigat.`);
+            }
         });
 
+        // Cand cineva inchide fereastra sau da Abandon
         socket.on('opponent_disconnected', () => {
             setIsGameOver(true);
-            setStatus('Meci abandonat (un jucător a ieșit). 🚪');
+            setStatus('Meci terminat: Unul dintre jucatori a abandonat partida.');
         });
 
         return () => {
@@ -62,36 +63,43 @@ export const SpectatorPage = () => {
     }, [roomId, navigate]);
 
     return (
-        <div className="game-container">
-            <div className="game-header">
-                <h2>Mod Spectator 🍿</h2>
-                <div className="status-box" style={{ color: isGameOver ? '#ef4444' : '#22c55e' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="minimal-card" style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
+
+                <div className="section-title" style={{ border: 'none', marginBottom: '10px' }}>Monitorizare Live</div>
+                <h2 style={{ fontSize: '28px', fontWeight: '900', margin: '0 0 10px 0' }}>Mod Spectator</h2>
+
+                {/* Caseta de status dinamică: Verde pentru LIVE, Roșu pentru Abandon/Final */}
+                <div style={{
+                    display: 'inline-block', padding: '10px 20px', borderRadius: '4px', marginBottom: '30px', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px',
+                    backgroundColor: isGameOver ? '#fef2f2' : '#f0fdf4',
+                    color: isGameOver ? '#ef4444' : '#16a34a',
+                    border: isGameOver ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                    transition: 'all 0.3s ease'
+                }}>
                     {status}
                 </div>
+
+                {/* TABLA PREMIUM NEAGRĂ (Garantat fără erori vizuale) */}
+                <div className="premium-board">
+                    {board.flat().map((cellValue, index) => {
+                        let cellClass = "premium-cell";
+                        if (cellValue === 1) cellClass += " p1";
+                        if (cellValue === 2) cellClass += " p2";
+
+                        return (
+                            <div key={`cell-${index}`} className={cellClass} />
+                        );
+                    })}
+                </div>
+
+                <div style={{ marginTop: '40px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                    <button onClick={() => navigate('/lobby')} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 20px' }}>
+                        Inapoi in Lobby
+                    </button>
+                </div>
+
             </div>
-
-            <div className="board spectator-board">
-                {board.flat().map((cellValue, index) => {
-                    let cellClass = "cell";
-                    if (cellValue === 1) cellClass += " player1";
-                    if (cellValue === 2) cellClass += " player2";
-
-                    return (
-                        <div
-                            key={`cell-${index}`}
-                            className={cellClass}
-                        />
-                    );
-                })}
-            </div>
-
-            <button
-                onClick={() => navigate('/lobby')}
-                className="submit-button"
-                style={{ marginTop: '30px' }}
-            >
-                Înapoi în Lobby
-            </button>
         </div>
     );
 };

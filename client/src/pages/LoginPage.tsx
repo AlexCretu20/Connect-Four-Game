@@ -8,7 +8,6 @@ export const LoginPage = () => {
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
-
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +29,6 @@ export const LoginPage = () => {
                 throw new Error(data.error || 'Date de autentificare incorecte');
             }
 
-            // Salvăm sesiunea și pornim socket-ul
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
 
@@ -47,43 +45,55 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <h2 className="login-title">Autentificare</h2>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="minimal-card" style={{ maxWidth: '400px', width: '100%', padding: '40px' }}>
 
-                {error && <div className="error-message">{error}</div>}
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <div className="section-title" style={{ border: 'none', marginBottom: '10px' }}>Patru In Linie</div>
+                    <h1 style={{ fontSize: '28px', fontWeight: '900', margin: 0 }}>Autentificare</h1>
+                </div>
 
-                <form onSubmit={handleSubmit} className="login-form">
-                    <div className="form-group">
-                        <label>Email sau Username</label>
+                {error && <div style={{ color: '#ef4444', fontSize: '13px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
+
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            Email sau Username
+                        </label>
                         <input
                             type="text"
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
                             required
                             placeholder="ex: jucator1"
+                            className="search-input"
+                            style={{ marginBottom: 0 }}
                         />
                     </div>
 
-                    <div className="form-group">
-                        <label>Parolă</label>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            Parola
+                        </label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             placeholder="Introdu parola"
+                            className="search-input"
+                            style={{ marginBottom: 0 }}
                         />
                     </div>
 
-                    <button type="submit" disabled={isLoading} className="submit-button">
-                        {isLoading ? 'Se verifică...' : 'Loghează-te'}
+                    <button type="submit" disabled={isLoading} className="btn-minimal btn-primary" style={{ marginTop: '10px' }}>
+                        {isLoading ? 'Se verifica...' : 'Logheaza-te'}
                     </button>
                 </form>
 
-                <p className="toggle-text">
-                    Nu ai cont? <Link to="/register">Înregistrează-te aici.</Link>
-                </p>
+                <div style={{ textAlign: 'center', marginTop: '25px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                    Nu ai cont? <Link to="/register" style={{ color: 'var(--text-primary)', fontWeight: 'bold', textDecoration: 'none', borderBottom: '1px solid var(--text-primary)' }}>Inregistreaza-te aici.</Link>
+                </div>
             </div>
         </div>
     );

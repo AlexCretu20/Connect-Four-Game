@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate} from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './Auth.css';
 
 export const RegisterPage = () => {
@@ -10,13 +10,13 @@ export const RegisterPage = () => {
     const [password, setPassword] = useState('');
 
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState(''); // <-- Am adăugat starea pentru succes
+    const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setSuccess(''); // Curățăm succesul anterior dacă există
+        setSuccess('');
         setIsLoading(true);
 
         try {
@@ -32,10 +32,8 @@ export const RegisterPage = () => {
                 throw new Error(data.error || 'Eroare la crearea contului');
             }
 
-            // Setăm mesajul vizual în loc de alert()
-            setSuccess('Înregistrare cu succes! Te redirecționăm...');
+            setSuccess('Inregistrare cu succes! Te redirectionam...');
 
-            // Așteptăm 2 secunde ca utilizatorul să vadă mesajul, apoi îl mutăm
             setTimeout(() => {
                 navigate('/login');
             }, 2000);
@@ -48,31 +46,34 @@ export const RegisterPage = () => {
     };
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <h2 className="login-title">Creare Cont</h2>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="minimal-card" style={{ maxWidth: '400px', width: '100%', padding: '40px' }}>
 
-                {/* Afișăm eroarea cu roșu dacă există */}
-                {error && <div className="error-message">{error}</div>}
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <div className="section-title" style={{ border: 'none', marginBottom: '10px' }}>Patru In Linie</div>
+                    <h1 style={{ fontSize: '28px', fontWeight: '900', margin: 0 }}>Creare Cont</h1>
+                </div>
 
-                {/* Afișăm succesul cu verde dacă există */}
-                {success && <div className="success-message">{success}</div>}
+                {error && <div style={{ color: '#ef4444', fontSize: '13px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
+                {success && <div style={{ color: '#10b981', fontSize: '13px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>{success}</div>}
 
-                <form onSubmit={handleSubmit} className="login-form">
-                    <div className="form-group">
-                        <label>Username</label>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Username</label>
                         <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            placeholder="Alege un nume de utilizator"
-                            disabled={success !== ''} // Dezactivăm inputurile după succes
+                            placeholder="Alege un nume"
+                            disabled={success !== ''}
+                            className="search-input"
+                            style={{ marginBottom: 0 }}
                         />
                     </div>
 
-                    <div className="form-group">
-                        <label>Email</label>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Email</label>
                         <input
                             type="email"
                             value={email}
@@ -80,29 +81,33 @@ export const RegisterPage = () => {
                             required
                             placeholder="adresa@email.com"
                             disabled={success !== ''}
+                            className="search-input"
+                            style={{ marginBottom: 0 }}
                         />
                     </div>
 
-                    <div className="form-group">
-                        <label>Parolă</label>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Parola</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            placeholder="Introdu o parolă sigură"
+                            placeholder="Introdu o parola sigura"
                             disabled={success !== ''}
+                            className="search-input"
+                            style={{ marginBottom: 0 }}
                         />
                     </div>
 
-                    <button type="submit" disabled={isLoading || success !== ''} className="submit-button">
-                        {isLoading ? 'Se creează contul...' : 'Înregistrează-te'}
+                    <button type="submit" disabled={isLoading || success !== ''} className="btn-minimal btn-primary" style={{ marginTop: '10px' }}>
+                        {isLoading ? 'Se creeaza contul...' : 'Inregistreaza-te'}
                     </button>
                 </form>
 
-                <p className="toggle-text" onClick={() => navigate('/login')}>
-                    Ai deja cont? Loghează-te aici.
-                </p>
+                <div style={{ textAlign: 'center', marginTop: '25px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                    Ai deja cont? <Link to="/login" style={{ color: 'var(--text-primary)', fontWeight: 'bold', textDecoration: 'none', borderBottom: '1px solid var(--text-primary)' }}>Logheaza-te aici.</Link>
+                </div>
             </div>
         </div>
     );

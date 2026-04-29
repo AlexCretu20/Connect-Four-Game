@@ -16,27 +16,11 @@ export const TournamentsPage = () => {
         setTimeout(() => setNotification(null), 3000);
     };
 
-
-
     const fetchTournaments = async () => {
         try {
             const res = await fetch('http://localhost:5000/api/see_tournaments');
             const data = await res.json();
             setTournaments(data);
-
-            const activeTournamentForMe = data.find((t: any) =>
-                t.status === 'active' &&
-                // Verificăm dacă user-ul este owner sau dacă am putea verifica înscrierea (opțional)
-                // Pentru simplitate, dacă turneul e activ, lăsăm utilizatorul să dea click,
-                // dar putem forța intrarea dacă el a fost implicat:
-                localStorage.getItem(`joined_tournament_${t.id}`) === 'true'
-            );
-
-            if (activeTournamentForMe) {
-                // Dacă vrei redirecționare automată instantă:
-                // navigate(`/tournaments/${activeTournamentForMe.id}/bracket`);
-                // SAU pur și simplu turneul va apărea acum în listă cu butonul "Vezi Tabloul"
-            }
         } catch (err) {
             console.error(err);
         }
@@ -49,16 +33,14 @@ export const TournamentsPage = () => {
         } else {
             navigate('/login');
         }
-
-        fetchTournaments(); // Aducem datele imediat
-
+        fetchTournaments();
         const interval = setInterval(fetchTournaments, 5000);
         return () => clearInterval(interval);
     }, [navigate]);
 
     const handleCreateTournament = async () => {
         if (!newTournamentName.trim()) {
-            showNotification('Te rog să introduci un nume pentru turneu.', 'error');
+            showNotification('Introdu un nume pentru turneu.', 'error');
             return;
         }
 
@@ -66,11 +48,7 @@ export const TournamentsPage = () => {
             const res = await fetch('http://localhost:5000/api/create_tournament', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: newTournamentName,
-                    ownerId: user?.id,
-                    maxPlayers: maxPlayers
-                })
+                body: JSON.stringify({ name: newTournamentName, ownerId: user?.id, maxPlayers: maxPlayers })
             });
 
             if (res.ok) {
@@ -92,9 +70,7 @@ export const TournamentsPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user?.id })
             });
-
             const data = await res.json();
-
             if (res.ok) {
                 showNotification(data.message, 'success');
                 fetchTournaments();
@@ -107,99 +83,86 @@ export const TournamentsPage = () => {
     };
 
     return (
-        <div className="login-container" style={{ paddingBottom: '50px' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', padding: '40px 20px' }}>
+
             {notification && (
                 <div style={{
                     position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: notification.type === 'success' ? '#22c55e' : '#ef4444',
-                    color: 'white', padding: '12px 24px', borderRadius: '8px', zIndex: 1000, fontWeight: 'bold'
+                    backgroundColor: 'white', border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)', padding: '15px 30px', borderRadius: '4px', zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold'
                 }}>
                     {notification.message}
                 </div>
             )}
 
-            <div className="login-card" style={{ maxWidth: '600px', width: '100%' }}>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 className="login-title" style={{ margin: 0 }}>🏆 Turnee</h2>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <div>
+                        <div className="section-title" style={{ marginBottom: '5px', border: 'none', padding: 0 }}>Competitii</div>
+                        <h1 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Turnee Active</h1>
+                    </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={fetchTournaments} style={{ background: '#f3f4f6', color: 'black', border: '1px solid #d1d5db', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                            🔄 Refresh
-                        </button>
-                        <button onClick={() => navigate('/lobby')} style={{ background: '#6b7280', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                            Înapoi
-                        </button>
-
-                        <button
-                            onClick={() => navigate('/tournaments/history')}
-                            style={{ background: '#eab308', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            📜 Arhivă Turnee
-                        </button>
-
+                        <button onClick={fetchTournaments} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 15px' }}>Refresh</button>
+                        <button onClick={() => navigate('/tournaments/history')} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 15px' }}>Arhiva</button>
+                        <button onClick={() => navigate('/lobby')} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 15px' }}>Lobby</button>
                     </div>
                 </div>
 
-
-
-                <div style={{ marginTop: '30px', padding: '20px', background: '#f3f4f6', borderRadius: '8px', border: '1px solid #d1d5db' }}>
-                    <h3 style={{ marginTop: 0, color: '#374151' }}>Creează un turneu nou</h3>
-                    <input
-                        type="text"
-                        placeholder="Numele turneului (ex: Cupa Regelui)"
-                        value={newTournamentName}
-                        onChange={(e) => setNewTournamentName(e.target.value)}
-                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', marginBottom: '10px', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                        <label style={{ alignSelf: 'center', fontWeight: '500' }}>Limită jucători:</label>
+                <div className="minimal-card" style={{ marginBottom: '30px', background: '#f9fafb' }}>
+                    <div className="section-title">Creeaza un turneu nou</div>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="Numele turneului (ex: Cupa Toamnei)"
+                            value={newTournamentName}
+                            onChange={(e) => setNewTournamentName(e.target.value)}
+                            className="search-input"
+                            style={{ margin: 0, flex: 2 }}
+                        />
                         <select
                             value={maxPlayers}
                             onChange={(e) => setMaxPlayers(parseInt(e.target.value))}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                            className="search-input"
+                            style={{ margin: 0, flex: 1, cursor: 'pointer' }}
                         >
-                            <option value={4}>4 Jucători</option>
-                            <option value={8}>8 Jucători</option>
+                            <option value={4}>4 Jucatori</option>
+                            <option value={8}>8 Jucatori</option>
                         </select>
+                        <button onClick={handleCreateTournament} className="btn-minimal btn-primary" style={{ flex: 1 }}>
+                            Creeaza
+                        </button>
                     </div>
-                    <button onClick={handleCreateTournament} className="submit-button" style={{ width: '100%', background: '#2563eb' }}>
-                        Creează Turneul
-                    </button>
                 </div>
 
-                <div style={{ marginTop: '30px' }}>
-                    <h3 style={{ color: '#374151' }}>Turnee disponibile (în așteptare)</h3>
+                <div className="minimal-card">
+                    <div className="section-title">Turnee Disponibile</div>
                     {tournaments.length === 0 ? (
-                        <p style={{ color: '#6b7280', textAlign: 'center' }}>Nu există turnee în acest moment. Fii primul care creează unul!</p>
+                        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>Nu exista turnee in acest moment.</p>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <div>
                             {tournaments.map(t => (
-                                <div key={t.id} style={{ border: '1px solid #e5e7eb', padding: '15px', borderRadius: '8px', background: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div key={t.id} className="list-row" style={{ alignItems: 'center' }}>
                                     <div>
-                                        <h4 style={{ margin: '0 0 5px 0', color: '#111827' }}>{t.name}</h4>
-                                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                                            Creat de: <strong>{t.owner_name}</strong>
-                                        </div>
-                                        <div style={{ fontSize: '14px', marginTop: '8px', fontWeight: 'bold', color: parseInt(t.current_players) >= t.max_players ? '#ef4444' : '#22c55e' }}>
+                                        <div style={{ fontSize: '16px', fontWeight: '600' }}>{t.name}</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>Creat de: {t.owner_name}</div>
+                                        <div style={{ fontSize: '12px', marginTop: '4px', fontWeight: 'bold', color: parseInt(t.current_players) >= t.max_players ? '#ef4444' : '#16a34a' }}>
                                             Locuri: {t.current_players || 0} / {t.max_players}
                                         </div>
                                     </div>
 
-                                    {/* 🔥 Logica pentru a afișa butonul de Bracket sau cel de Înscriere */}
                                     {t.status === 'active' ? (
-                                        <button
-                                            onClick={() => navigate(`/tournaments/${t.id}/bracket`)}
-                                            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                        >
-                                            Vezi Tabloul 👁️
+                                        <button onClick={() => navigate(`/tournaments/${t.id}/bracket`)} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '8px 16px' }}>
+                                            Tablou Turneu
                                         </button>
                                     ) : (
                                         <button
                                             onClick={() => handleJoinTournament(t.id)}
                                             disabled={parseInt(t.current_players) >= t.max_players}
-                                            style={{ background: parseInt(t.current_players) >= t.max_players ? '#9ca3af' : '#eab308', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: parseInt(t.current_players) >= t.max_players ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+                                            className="btn-minimal btn-primary"
+                                            style={{ width: 'auto', padding: '8px 16px', opacity: parseInt(t.current_players) >= t.max_players ? 0.5 : 1 }}
                                         >
-                                            {parseInt(t.current_players) >= t.max_players ? 'Se Generează...' : 'Înscrie-te'}
+                                            {parseInt(t.current_players) >= t.max_players ? 'Se Genereaza...' : 'Inscrie-te'}
                                         </button>
                                     )}
                                 </div>

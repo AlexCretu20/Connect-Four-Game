@@ -91,7 +91,7 @@ export const LobbyPage = () => {
         });
 
         socket.on('challenge_declined', (data) => {
-            showNotification(`Jucătorul ${data.responderName} a refuzat provocarea ta. 😢`, 'error');
+            showNotification(`Jucătorul ${data.responderName} a refuzat provocarea ta.`, 'error');
         });
 
         return () => {
@@ -139,7 +139,7 @@ export const LobbyPage = () => {
             toId: targetId
         });
 
-        // 🔥 Aici am scos alert() și am pus notificarea frumoasă verde ('success')
+
         showNotification('Provocare trimisă! Așteptăm răspunsul...', 'success');
 
         setSearchQuery(''); // Curățăm bara după ce trimitem provocarea
@@ -147,193 +147,134 @@ export const LobbyPage = () => {
     };
 
     return (
-        <div className="login-container" style={{ paddingBottom: '50px' }}>
-            <div className="login-card" style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}>
-                <h2 className="login-title">Sala de Așteptare</h2>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
 
-                {notification && (
-                    <div style={{
-                        position: 'fixed',
-                        top: '20px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        backgroundColor: notification.type === 'success' ? '#22c55e' : notification.type === 'error' ? '#ef4444' : '#3b82f6',
-                        color: 'white',
-                        padding: '12px 24px',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                        fontWeight: 'bold',
-                        zIndex: 1000,
-                        animation: 'fadeInDown 0.3s ease-out'
-                    }}>
-                        {notification.message}
+            {notification && (
+                <div style={{
+                    position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: 'white', border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    padding: '15px 30px', borderRadius: '4px', zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold'
+                }}>
+                    {notification.message}
+                </div>
+            )}
+            <div style={{ padding: '40px 20px', textAlign: 'left', maxWidth: '1250px', margin: '0 auto' }}>
+                <div style={{ textTransform: 'uppercase', letterSpacing: '3px', color: '#6b7280', fontSize: '12px', marginBottom: '10px' }}>
+                    Patru / In / Linie
+                </div>
+                <h1 style={{ fontSize: '42px', fontWeight: '900', margin: 0 }}>Sala de Asteptare</h1>
+            </div>
+
+            <div className="lobby-grid">
+
+                {/* COLOANA 1: Optiuni Profil */}
+                <div className="minimal-card">
+                    <div className="section-title">Contul meu</div>
+                    <div style={{ marginBottom: '20px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Utilizator: </span>
+                        <strong style={{ fontSize: '18px' }}>{user?.username}</strong>
                     </div>
-                )}
 
-                {incomingChallenge && (
-                    <div style={{ background: '#fef08a', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '2px solid #eab308' }}>
-                        <h3> Provocare!</h3>
-                        <p><strong>{incomingChallenge.fromName}</strong> te-a provocat la un meci!</p>
-                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                            <button onClick={() => {
-                                socket.emit('accept_challenge', { challengerId: incomingChallenge.fromId, myId: user?.id });
-                                setIncomingChallenge(null);
-                            }} style={{ background: '#22c55e', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Acceptă</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <button onClick={handleFindMatch} className="btn-minimal btn-primary">
+                            {isSearching ? 'Cautare adversar...' : 'Meci Rapid 1v1'}
+                        </button>
+                        <button onClick={() => navigate('/tournaments')} className="btn-minimal btn-outline">Turnee Active</button>
+                        <button onClick={() => navigate('/leaderboard')} className="btn-minimal btn-outline">Clasament Global</button>
+                        <button onClick={() => navigate('/history')} className="btn-minimal btn-outline">Istoric Meciuri</button>
+                    </div>
+                </div>
 
-                            <button onClick={() => {
-                                // 🔥 NOU: Îi spunem serverului că am refuzat
-                                socket.emit('decline_challenge', {
-                                    challengerId: incomingChallenge.fromId,
-                                    responderName: user?.username
-                                });
-                                setIncomingChallenge(null);
-                            }} style={{ background: '#ef4444', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-                                Refuză
-                            </button>
+                {/* COLOANA 2: Jucatori Online si Provocari */}
+                <div className="minimal-card">
+                    <div className="section-title">Provocare Directa</div>
+
+                    {incomingChallenge && (
+                        <div style={{ background: '#fef2f2', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #fecaca' }}>
+                            <div style={{ marginBottom: '10px', fontSize: '14px' }}>
+                                Jucatorul <strong>{incomingChallenge.fromName}</strong> te-a provocat.
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button onClick={() => socket.emit('accept_challenge', { challengerId: incomingChallenge.fromId, myId: user?.id })} className="btn-minimal btn-primary" style={{ padding: '8px' }}>Accepta</button>
+                                <button
+                                    onClick={() => {
+                                        // 🔥 PASUL LIPSA: Trimitem evenimentul de refuz către server
+                                        socket.emit('decline_challenge', {
+                                            challengerId: incomingChallenge.fromId,
+                                            responderName: user?.username
+                                        });
+
+                                        // Ștergem provocarea de pe ecranul nostru
+                                        setIncomingChallenge(null);
+                                    }}
+                                    className="btn-minimal btn-danger"
+                                    style={{ padding: '8px' }}
+                                >
+                                    Refuza
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {user && !isSearching && (
-                    <p style={{ marginBottom: '24px', fontSize: '16px', color: '#4a4a4a' }}>
-                        Salut, <strong>{user.username}</strong>!
-                    </p>
-                )}
-
-                <button onClick={() => navigate('/tournaments')} className="submit-button" style={{ marginTop: '12px', backgroundColor: '#eab308', width: '100%', color: 'black' }}>
-                    Mergi la Turnee
-                </button>
-
-                {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
-
-                {isSearching ? (
-                    <div className="searching-box">
-                        <p>Se caută un adversar...</p>
-                        <small>Așteaptă maxim 30 de secunde.</small>
-                    </div>
-                ) : (
-                    <button onClick={handleFindMatch} className="submit-button" style={{ width: '100%' }}>
-                        {error ? 'Reîncearcă căutarea' : 'Caută un meci (1v1)'}
-                    </button>
-                )}
-
-                <button
-                    onClick={() => navigate('/leaderboard')}
-                    className="submit-button"
-                    style={{ marginTop: '12px', backgroundColor: '#6b7280', width: '100%' }}
-                >
-                    Vezi Clasamentul
-                </button>
-
-                <button
-                    onClick={() => navigate('/history')}
-                    className="submit-button"
-                    style={{ marginTop: '12px', backgroundColor: '#4b5563', width: '100%' }}
-                >
-                    Istoric Meciuri
-                </button>
-
-                {/* ==================================================== */}
-                {/* SECȚIUNEA PENTRU CĂUTARE ȘI PROVOCARE                */}
-                {/* ==================================================== */}
-                <div style={{ marginTop: '30px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
-                    <h3 style={{ color: '#2563eb', margin: 0, marginBottom: '15px' }}>🔍 Provoacă un Jucător</h3>
                     <input
                         type="text"
-                        placeholder="Caută după nume..."
+                        placeholder="Cauta jucator..."
                         value={searchQuery}
                         onChange={handleSearch}
-                        style={{
-                            width: '100%', padding: '10px', borderRadius: '8px',
-                            border: '1px solid #d1d5db', marginBottom: '15px', boxSizing: 'border-box'
-                        }}
+                        className="search-input"
                     />
 
-                    {/* Dacă scrii ceva, arată searchResults. Dacă nu, arată allUsers */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                         {(searchQuery.length > 2 ? searchResults : allUsers).map((u) => (
-                            <div key={u.id} style={{
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                background: '#f9fafb', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb'
-                            }}>
+                            <div key={u.id} className="list-row">
                                 <span style={{ fontWeight: '500' }}>{u.username}</span>
-                                <button
-                                    onClick={() => sendChallenge(u.id)}
-                                    style={{ background: '#2563eb', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
-                                >
-                                    Provoacă ⚔️
+                                <button onClick={() => sendChallenge(u.id)} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '6px 12px', fontSize: '12px' }}>
+                                    Provoaca
                                 </button>
                             </div>
                         ))}
+                    </div>
+                </div>
 
-                        {searchQuery.length > 2 && searchResults.length === 0 && (
-                            <p style={{ color: '#6b7280', fontSize: '14px' }}>Nu a fost găsit niciun jucător cu acest nume.</p>
+                {/* COLOANA 3: Meciuri in desfasurare */}
+                <div className="minimal-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div className="section-title" style={{ marginBottom: 0, border: 'none' }}>Meciuri Live</div>
+                        <button
+                            onClick={fetchLiveMatches}
+                            className="btn-minimal btn-outline"
+                            style={{
+                                width: 'auto',
+                                padding: '5px 12px',
+                                fontSize: '11px',
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #d1d5db'
+                            }}
+                        >
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        {liveMatches.length === 0 ? (
+                            <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>Nu sunt meciuri active.</p>
+                        ) : (
+                            liveMatches.map((m) => (
+                                <div key={m.roomId} className="list-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '10px' }}>
+                                    <div style={{ fontSize: '14px' }}>
+                                        <strong>{m.p1Name}</strong> vs <strong>{m.p2Name}</strong>
+                                    </div>
+                                    <button onClick={() => navigate(`/spectate/${m.roomId}`)} className="btn-minimal btn-danger" style={{ padding: '6px', fontSize: '11px' }}>
+                                        Urmareste Meciul
+                                    </button>
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>
 
-                {/* ==================================================== */}
-                {/* SECȚIUNEA PENTRU MECIURI LIVE (SPECTATOR MODE)       */}
-                {/* ==================================================== */}
-                <div style={{ marginTop: '30px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                        <h3 style={{ color: '#ef4444', margin: 0 }}>🔴 Meciuri Live</h3>
-                        <button
-                            onClick={fetchLiveMatches}
-                            style={{
-                                padding: '6px 12px',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                                backgroundColor: '#f3f4f6',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '4px'
-                            }}
-                        >
-                            🔄 Refresh
-                        </button>
-                    </div>
-
-                    {liveMatches.length === 0 ? (
-                        <div style={{ padding: '20px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: '8px', textAlign: 'center', color: '#6b7280' }}>
-                            Nu se joacă niciun meci momentan.<br/>Fii tu primul!
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {liveMatches.map((match) => (
-                                <div key={match.roomId} style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    background: '#ffffff', padding: '12px', borderRadius: '8px',
-                                    border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                    textAlign: 'left'
-                                }}>
-                                    <div>
-                                        <div style={{ fontSize: '15px' }}>
-                                            <strong>{match.p1Name}</strong> <span style={{color: '#9ca3af', fontSize: '13px'}}>vs</span> <strong>{match.p2Name}</strong>
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                                            Mutări jucate: {match.moveCount}
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => navigate(`/spectate/${match.roomId}`)}
-                                        style={{
-                                            background: '#ef4444',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '8px 16px',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            fontWeight: 'bold',
-                                            fontSize: '13px'
-                                        }}
-                                    >
-                                        Watch
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
             </div>
         </div>
     );

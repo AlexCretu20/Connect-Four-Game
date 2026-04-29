@@ -52,10 +52,10 @@ export const GamePage = () => {
     }, []);
 
     const handleColumnClick = (colIndex: number) => {
-        // Validare 1: Jocul e gata?
-        if (winner !== null) return;
+        // Validare 1: Jocul e gata sau adversarul a ieșit?
+        if (winner !== null || opponentLeft) return;
 
-        // Validare 2: ESTE RÂNDUL TĂU? (US-402)
+        // Validare 2: ESTE RÂNDUL TĂU?
         if (currentPlayer !== yourPlayerId) {
             console.log("Nu e rândul tău!");
             return;
@@ -65,71 +65,142 @@ export const GamePage = () => {
         socket.emit('make_move', { roomId, column: colIndex });
     };
 
-    const isMyTurn = currentPlayer === yourPlayerId && winner === null;
+    const isMyTurn = currentPlayer === yourPlayerId && winner === null && !opponentLeft;
 
-    console.log('Board:', board);
-    console.log('Board length:', board?.length);
-    console.log('Row 0 length:', board?.[0]?.length);
+    const handleLeaveGame = () => {
+        // Trimitem abandon către server DOAR dacă meciul nu s-a terminat deja
+        // (Dacă am câștigat/pierdut deja, doar ne întoarcem în lobby)
+        if (winner === null && !opponentLeft) {
+            socket.emit('leave_match', roomId);
+        }
+        navigate('/lobby');
+    };
 
     return (
-        <div className="game-container">
-            {/* 1. ANTETUL: Titlul și Mesajele de stare (Câștig/Rândul tău/Abandon) */}
-            <div className="game-header">
-                <h2>Connect Four</h2>
-                <div className="status-box">
-                    {opponentLeft ? (
-                        <span style={{ color: '#ef4444' }}>
-                        Adversarul s-a deconectat! Ai câștigat prin abandon.
-                    </span>
-                    ) : winner === 'draw' ? (
-                        <span style={{ color: '#6b7280' }}> Remiză! Meciul s-a terminat.</span>
-                    ) : winner ? (
-                        <span style={{ color: winner === 1 ? '#ef4444' : '#eab308' }}>
-                        {winner === yourPlayerId ? ' Felicitări, ai câștigat!' : '💀 Ai pierdut meciul!'}
-                    </span>
-                    ) : (
-                        <span>
-                        {isMyTurn ? (
-                            <strong style={{ color: '#16a34a' }}>E rândul tău!</strong>
-                        ) : (
-                            <span style={{ color: '#6b7280' }}>Se așteaptă mutarea adversarului...</span>
-                        )}
-                    </span>
-                    )}
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+
+            {/* Header Pagina */}
+            <div>
+                <div style={{ textTransform: 'uppercase', letterSpacing: '3px', color: '#6b7280', fontSize: '12px', marginBottom: '10px' }}>
+                    Patru / În / Linie
                 </div>
+                <h1 className="page-title">Patru în Linie</h1>
+                <p className="page-subtitle">
+                    Aliniați patru piese — pe orizontală, verticală sau diagonală — înaintea adversarului.
+                </p>
             </div>
 
-            {/* 2. TABLA DE JOC: Grila de 6x7 celule */}
-            <div className="board">
-                {board.flat().map((cellValue, index) => {
-                    const colIndex = index % 7;
+            <div className="game-layout">
+                {/* ======================================= */}
+                {/* PARTEA STÂNGĂ: Tabla de joc             */}
+                {/* ======================================= */}
+                <div className="minimal-card">
+                    <div className="board-header">
+                        <div className="player-badge">
+                            <div className="color-dot dot-p1"></div>
+                            Jucător 1 {yourPlayerId === 1 && "(Tu)"}
+                        </div>
+                        <span style={{ color: '#9ca3af', fontSize: '12px', letterSpacing: '2px' }}>VS</span>
+                        <div className="player-badge">
+                            <div className="color-dot dot-p2"></div>
+                            Jucător 2 {yourPlayerId === 2 && "(Tu)"}
+                        </div>
+                    </div>
 
-                    let cellClass = "cell";
-                    if (cellValue === 1) cellClass += " player1";
-                    if (cellValue === 2) cellClass += " player2";
-                    if (cellValue === 0 && isMyTurn && !winner && !opponentLeft)
-                        cellClass += " can-click";
+                    {/* Generarea grilei 6x7 */}
+                    <div className="connect4-board">
+                        {board.flat().map((cellValue, index) => {
+                            const colIndex = index % 7;
 
-                    return (
-                        <div
-                            key={index}
-                            className={cellClass}
-                            onClick={() => handleColumnClick(colIndex)}
-                        />
-                    );
-                })}
+                            let cellClass = "board-cell";
+                            if (cellValue === 1) cellClass += " filled-p1";
+                            if (cellValue === 2) cellClass += " filled-p2";
+
+                            // Dacă e rândul meu și coloana respectivă se poate apăsa, putem adăuga un efect de hover (opțional)
+                            if (cellValue === 0 && isMyTurn) {
+                                cellClass += " clickable"; // Poți adăuga cursor: pointer in CSS pt clasa asta
+                            }
+
+                            return (
+                                <div
+                                    key={index}
+                                    className={cellClass}
+                                    onClick={() => handleColumnClick(colIndex)}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* ======================================= */}
+                {/* PARTEA DREAPTĂ: Sidebar / Scor          */}
+                {/* ======================================= */}
+                <div>
+                    <div className="minimal-card" style={{ marginBottom: '20px' }}>
+
+                        {/* Secțiune: Status Meci */}
+                        <div className="sidebar-section">
+                            <div className="sidebar-title">Status Meci</div>
+
+                            <div className="stat-row">
+                                <span>La mutare</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                                    <div className={`color-dot ${currentPlayer === 1 ? 'dot-p1' : 'dot-p2'}`}></div>
+                                    Jucător {currentPlayer}
+                                </div>
+                            </div>
+
+                            <div className="stat-row" style={{ flexDirection: 'column', alignItems: 'flex-start', marginTop: '15px', background: '#f9fafb', padding: '15px', borderRadius: '4px' }}>
+                                <span style={{ fontSize: '12px', textTransform: 'uppercase', color: '#6b7280', marginBottom: '5px' }}>Mesaj:</span>
+                                <strong style={{ fontSize: '16px' }}>
+                                    {opponentLeft ? (
+                                        <span style={{ color: '#ef4444' }}>Adversarul a fugit! Victorie!</span>
+                                    ) : winner === 'draw' ? (
+                                        <span style={{ color: '#6b7280' }}>Remiză!</span>
+                                    ) : winner ? (
+                                        <span style={{ color: winner === yourPlayerId ? '#10b981' : '#ef4444' }}>
+                                            {winner === yourPlayerId ? 'Ai câștigat!' : ' Ai pierdut!'}
+                                        </span>
+                                    ) : isMyTurn ? (
+                                        <span style={{ color: '#10b981' }}>E rândul tău!</span>
+                                    ) : (
+                                        <span style={{ color: '#6b7280' }}>Așteaptă adversarul...</span>
+                                    )}
+                                </strong>
+                            </div>
+                        </div>
+
+                        {/* Secțiune: Legendă */}
+                        <div className="sidebar-section">
+                            <div className="sidebar-title">Jucători</div>
+                            <div className="stat-row">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div className="color-dot dot-p1"></div>
+                                    <span style={{ color: '#6b7280', fontSize: '12px', letterSpacing: '1px' }}>ROȘU</span>
+                                </div>
+                                <span>Jucător 1</span>
+                            </div>
+                            <div className="stat-row">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div className="color-dot dot-p2"></div>
+                                    <span style={{ color: '#6b7280', fontSize: '12px', letterSpacing: '1px' }}>GALBEN</span>
+                                </div>
+                                <span>Jucător 2</span>
+                            </div>
+                        </div>
+
+                        {/* Butonul de Ieșire */}
+                        <div className="sidebar-section" style={{ marginBottom: 0 }}>
+                            <div className="sidebar-title">Comenzi</div>
+                            <button onClick={handleLeaveGame} className={(winner || opponentLeft) ? "btn-black" : "btn-outline"}>
+                                {(winner || opponentLeft) ? 'Inapoi in Lobby' : 'Abandoneaza Meciul'}
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
             </div>
-
-            {/* 3. BUTONUL DE IEȘIRE: Apare DOAR la final (Victorie normală SAU Abandon) */}
-            {(winner || opponentLeft) && (
-                <button
-                    onClick={() => navigate('/lobby')}
-                    className="submit-button"
-                    style={{ marginTop: '30px', padding: '12px 24px' }}
-                >
-                    Întoarce-te în Lobby
-                </button>
-            )}
         </div>
     );
 };

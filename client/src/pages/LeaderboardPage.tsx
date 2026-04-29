@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Auth.css'; // Folosim stilurile tale de bază
+import './Auth.css';
 
 export const LeaderboardPage = () => {
     const navigate = useNavigate();
@@ -10,99 +10,54 @@ export const LeaderboardPage = () => {
         fetch('http://localhost:5000/api/leaderboard')
             .then(res => res.json())
             .then(data => setStats(data))
-            .catch(err => console.error("Eroare leaderboard:", err));
+            .catch(err => console.error(err));
     }, []);
 
     return (
-        <div className="login-container">
-            <div className="login-card" style={{ maxWidth: '950px', width: '95%', padding: '30px' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)', padding: '40px 20px' }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
-                {/* Header Clasament */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                    <h2 className="login-title" style={{ margin: 0, fontSize: '28px' }}>📊 Clasament Global</h2>
-                    <button
-                        onClick={() => navigate('/lobby')}
-                        style={{ background: '#6b7280', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
-                        onMouseOver={(e) => (e.currentTarget.style.background = '#4b5563')}
-                        onMouseOut={(e) => (e.currentTarget.style.background = '#6b7280')}
-                    >
-                        ← Lobby
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <div>
+                        <div className="section-title" style={{ marginBottom: '5px', border: 'none', padding: 0 }}>Statistici</div>
+                        <h1 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Clasament Global</h1>
+                    </div>
+                    <button onClick={() => navigate('/lobby')} className="btn-minimal btn-outline" style={{ width: 'auto', padding: '10px 20px' }}>
+                        Inapoi in Lobby
                     </button>
                 </div>
 
-                {/* Container Tabel cu Scroll pe Mobil */}
-                <div style={{ overflowX: 'auto', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #e5e7eb' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', fontSize: '15px' }}>
-                        <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e5e7eb', color: '#4b5563' }}>
-                            <th style={{ padding: '15px', textAlign: 'center' }}>Loc</th>
-                            <th style={{ padding: '15px', textAlign: 'left' }}>Jucător</th>
-                            <th style={{ padding: '15px', textAlign: 'center' }}>Meciuri</th>
-                            <th style={{ padding: '15px', textAlign: 'center', color: '#16a34a' }}>Victorii (W)</th>
-                            <th style={{ padding: '15px', textAlign: 'center', color: '#dc2626' }}>Înfrângeri (L)</th>
-                            <th style={{ padding: '15px', textAlign: 'center', color: '#2563eb' }}>Egaluri (D)</th>
-                            <th style={{ padding: '15px', textAlign: 'center' }}>Avg. Mutări (Câștig)</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {stats.map((user, index) => {
-                            const isTop3 = index < 3;
-                            const rowBg = index === 0 ? '#fffdf0' : index === 1 ? '#f8fafc' : index === 2 ? '#fffaf8' : 'white';
-
-                            return (
-                                <tr
-                                    key={index}
-                                    style={{
-                                        background: rowBg,
-                                        borderBottom: '1px solid #f1f5f9',
-                                        transition: 'transform 0.2s'
-                                    }}
-                                >
-                                    {/* Coloana Loc + Medalie */}
-                                    <td style={{ padding: '15px', textAlign: 'center', fontWeight: 'bold', fontSize: isTop3 ? '20px' : '15px' }}>
-                                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                <div className="minimal-card" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                            <thead>
+                            <tr style={{ background: '#f9fafb', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Loc</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Jucator</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Meciuri</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Victorii</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Infrangeri</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Remize</th>
+                                <th style={{ padding: '15px 20px', fontWeight: '600' }}>Mutari (Medie)</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {stats.map((user, index) => (
+                                <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                    <td style={{ padding: '15px 20px', fontWeight: index < 3 ? 'bold' : 'normal', color: index < 3 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                        {index + 1}
                                     </td>
-
-                                    {/* Nume Jucător */}
-                                    <td style={{ padding: '15px', fontWeight: isTop3 ? 'bold' : '500', color: '#1f2937' }}>
-                                        {user.username}
-                                    </td>
-
-                                    {/* Statistici cifre */}
-                                    <td style={{ padding: '15px', textAlign: 'center' }}>{user.total_games}</td>
-
-                                    <td style={{ padding: '15px', textAlign: 'center', fontWeight: 'bold', color: '#16a34a', background: 'rgba(22, 163, 74, 0.05)' }}>
-                                        {user.wins}
-                                    </td>
-
-                                    <td style={{ padding: '15px', textAlign: 'center', color: '#dc2626' }}>
-                                        {user.losses}
-                                    </td>
-
-                                    <td style={{ padding: '15px', textAlign: 'center', color: '#2563eb' }}>
-                                        {user.draws}
-                                    </td>
-
-                                    {/* Media de mutări */}
-                                    <td style={{ padding: '15px', textAlign: 'center', fontWeight: '500', color: '#4b5563' }}>
-                                        {user.avg_moves_win ? (
-                                            <span style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '6px' }}>
-                                                    {parseFloat(user.avg_moves_win).toFixed(1)}
-                                                </span>
-                                        ) : (
-                                            <span style={{ color: '#9ca3af' }}>—</span>
-                                        )}
-                                    </td>
+                                    <td style={{ padding: '15px 20px', fontWeight: '600', color: 'var(--text-primary)' }}>{user.username}</td>
+                                    <td style={{ padding: '15px 20px' }}>{user.total_games}</td>
+                                    <td style={{ padding: '15px 20px', color: '#16a34a', fontWeight: '500' }}>{user.wins}</td>
+                                    <td style={{ padding: '15px 20px', color: '#ef4444' }}>{user.losses}</td>
+                                    <td style={{ padding: '15px 20px', color: '#6b7280' }}>{user.draws}</td>
+                                    <td style={{ padding: '15px 20px' }}>{user.avg_moves_win ? parseFloat(user.avg_moves_win).toFixed(1) : '—'}</td>
                                 </tr>
-                            );
-                        })}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Footer Legendă */}
-                <div style={{ marginTop: '20px', fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
-                    * Clasamentul este ordonat după numărul de victorii și eficiența mutărilor.
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
