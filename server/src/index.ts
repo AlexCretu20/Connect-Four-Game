@@ -101,30 +101,56 @@ app.get('/api/matchesReplay/:id', async (req, res) => {
 });
 
 // ruta spectator
+// ruta spectator (REPARATĂ PENTRU TURNEE)
 app.get('/api/matchesLive', async (req, res) => {
     try {
         const liveMatches = [];
 
-        // Parcurgem toate camerele active (ex: room_1_2)
+        // Parcurgem toate camerele active
         for (const [roomId, game] of activeGames.entries()) {
-            const ids = roomId.replace('room_', '').split('_');
-            const p1Id = parseInt(ids[0]);
-            const p2Id = parseInt(ids[1]);
+            let p1Name = 'Jucător 1';
+            let p2Name = 'Jucător 2';
 
-            // Luăm numele jucătorilor din baza de date pentru a le afișa frumos
-            const result = await pool.query(
-                `SELECT id, username FROM users WHERE id IN ($1, $2)`,
-                [p1Id, p2Id]
-            );
+            if (roomId.startsWith('room_tourney_')) {
+                // ESTE MECI DE TURNEU (extragem ID-ul meciului)
+                const matchId = parseInt(roomId.replace('room_tourney_', ''));
 
-            const users = result.rows;
-            const p1 = users.find(u => u.id === p1Id)?.username || 'Jucător 1';
-            const p2 = users.find(u => u.id === p2Id)?.username || 'Jucător 2';
+                if (!isNaN(matchId)) {
+                    const result = await pool.query(`
+                        SELECT u1.username as p1_name, u2.username as p2_name 
+                        FROM matches m
+                        JOIN users u1 ON m.player1_id = u1.id
+                        JOIN users u2 ON m.player2_id = u2.id
+                        WHERE m.id = $1
+                    `, [matchId]);
+
+                    if (result.rows.length > 0) {
+                        p1Name = result.rows[0].p1_name;
+                        p2Name = result.rows[0].p2_name;
+                    }
+                }
+            } else {
+                // ESTE MECI CLASIC 1v1 (room_1_2 sau room_private_1_2)
+                const cleanRoomId = roomId.replace('room_private_', '').replace('room_', '');
+                const ids = cleanRoomId.split('_');
+                const p1Id = parseInt(ids[0]);
+                const p2Id = parseInt(ids[1]);
+
+                if (!isNaN(p1Id) && !isNaN(p2Id)) {
+                    const result = await pool.query(
+                        `SELECT id, username FROM users WHERE id IN ($1, $2)`,
+                        [p1Id, p2Id]
+                    );
+                    const users = result.rows;
+                    p1Name = users.find(u => u.id === p1Id)?.username || 'Jucător 1';
+                    p2Name = users.find(u => u.id === p2Id)?.username || 'Jucător 2';
+                }
+            }
 
             liveMatches.push({
                 roomId: roomId,
-                p1Name: p1,
-                p2Name: p2,
+                p1Name: p1Name,
+                p2Name: p2Name,
                 moveCount: game.moveCount
             });
         }
@@ -412,76 +438,158 @@ io.on('connection', (socket) => {
     });
 
     socket.on('make_move', async ({ roomId, column }) => {
+        const colNumber = parseInt(column, 10);
+        console.log(`\n[BACKEND] 🔵 Primit mutare pe coloana ${colNumber} în camera ${roomId}`);
+
         const game = activeGames.get(roomId);
 
         if (!game) {
-            console.error("Jocul nu a fost găsit!");
+            console.error(`[BACKEND] ❌ EROARE: Jocul nu a fost găsit pentru camera: ${roomId}!`);
             return;
         }
 
-        const result = game.dropPiece(column);
+        console.log(`[BACKEND] 🧠 Încercăm să punem piesa. E rândul jucătorului: ${game.currentPlayer}`);
+
+        // Aici dăm coloana transformată sigur în număr
+        const result = game.dropPiece(colNumber);
+
+        // 🔥 LOG CRUCIAL: Vedem exact ce a decis motorul de joc
+        console.log(`[BACKEND] 📊 Rezultat motor de joc:`, result);
 
         if (result.success) {
             const boardData = {
                 board: game.getBoard(),
                 nextPlayer: game.currentPlayer,
                 lastRow: result.row,
-                lastCol: column
+                lastCol: colNumber
             };
-            console.log('Data trimisa catre clienti:', boardData);
+
+            console.log(`[BACKEND] ✅ Mutare VALIDĂ! Trimitem la amândoi jucătorii.`);
+
             io.to(roomId).emit('board_updated', {
                 board: game.getBoard(),
                 nextPlayer: game.currentPlayer,
                 lastRow: result.row,
-                lastCol: column
+                lastCol: colNumber
             });
 
             io.to(roomId).emit('move_received', {
-                col: column,
+                col: colNumber,
                 playerIndex: game.currentPlayer === 1 ? 2 : 1,
                 moveNumber: game.moveHistory.length
             });
 
             if (result.win || result.draw) {
-                // În interiorul socket.on('make_move'), când result.win || result.draw
                 try {
-                    const ids = roomId.replace('room_', '').split('_');
-                    const p1Id = parseInt(ids[0]);
-                    const p2Id = parseInt(ids[1]);
+                    let noulMatchId;
+                    let realWinnerId = null;
 
-                    const winnerId = result.win ? (game.winner === 1 ? p1Id : p2Id) : null;
+                    // Verificăm dacă este meci de Turneu
+                    if (roomId.startsWith('room_tourney_')) {
+                        // ==========================================
+                        // 🏆 LOGICĂ PENTRU MECIURI DE TURNEU
+                        // ==========================================
+                        const matchIdStr = roomId.split('_')[2];
+                        noulMatchId = parseInt(matchIdStr);
 
-                    // 1. Salvăm meciul și cerem înapoi ID-ul generat (RETURNING id)
-                    const matchResult = await pool.query(
-                        `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status) 
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-                        [p1Id, p2Id, winnerId, game.moveCount, result.win ? 'finished' : 'draw']
-                    );
+                        const tMatch = await pool.query('SELECT player1_id, player2_id, tournament_id, tournament_round FROM matches WHERE id = $1', [noulMatchId]);
+                        const {player1_id, player2_id, tournament_id, tournament_round} = tMatch.rows[0];
 
-                    const noulMatchId = matchResult.rows[0].id; // Am prins ID-ul!
+                        // La turneu nu vrem egalitate, tragem la sorți dacă e draw
+                        realWinnerId = result.win ? (game.winner === 1 ? player1_id : player2_id) : (Math.random() > 0.5 ? player1_id : player2_id);
 
-                    // 2. Parcurgem istoricul din engine și salvăm fiecare mutare
-                    for (const move of game.moveHistory) {
-                        // Transformăm 1 și 2 în ID-urile reale din baza de date
-                        const realPlayerId = move.playerIndex === 1 ? p1Id : p2Id;
+                        // Salvăm cine a câștigat acest meci
+                        await pool.query('UPDATE matches SET winner_id = $1, total_moves = $2, status = $3 WHERE id = $4',
+                            [realWinnerId, game.moveCount, 'finished', noulMatchId]);
 
-                        await pool.query(
-                            `INSERT INTO moves (match_id, move_order, col_index, player_id) 
-             VALUES ($1, $2, $3, $4)`,
-                            [noulMatchId, move.moveNumber, move.col, realPlayerId]
+                        // VERIFICĂM DACĂ RUNDA CURENTĂ S-A TERMINAT COMPLET
+                        const pendingMatches = await pool.query(
+                            'SELECT count(*) FROM matches WHERE tournament_id = $1 AND tournament_round = $2 AND status != $3',
+                            [tournament_id, tournament_round, 'finished']
                         );
+
+                        if (parseInt(pendingMatches.rows[0].count) === 0) {
+                            console.log(`[TURNEU] Runda ${tournament_round} s-a încheiat!`);
+
+                            const winnersRes = await pool.query('SELECT winner_id FROM matches WHERE tournament_id = $1 AND tournament_round = $2', [tournament_id, tournament_round]);
+                            const winners = winnersRes.rows.map((r: any) => r.winner_id);
+
+                            if (winners.length === 1) {
+                                // Avem campionul!
+                                await pool.query('UPDATE tournaments SET status = $1 WHERE id = $2', ['finished', tournament_id]);
+                                console.log(`[TURNEU] 🎉 Turneul ${tournament_id} a fost câștigat de UserID: ${winners[0]}`);
+                            } else {
+                                // Generăm meciurile pentru Runda Următoare
+                                for (let i = 0; i < winners.length; i += 2) {
+                                    if (winners[i + 1]) {
+                                        await pool.query(
+                                            `INSERT INTO matches (player1_id, player2_id, status, tournament_id, tournament_round)
+                                             VALUES ($1, $2, 'pending', $3, $4)`,
+                                            [winners[i], winners[i + 1], tournament_id, tournament_round + 1]
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Opțional: Salvăm și mutările de la turneu pentru replay-uri
+                        for (const move of game.moveHistory) {
+                            const realPlayerId = move.playerIndex === 1 ? player1_id : player2_id;
+                            await pool.query(
+                                `INSERT INTO moves (match_id, move_order, col_index, player_id)
+                                 VALUES ($1, $2, $3, $4)`,
+                                [noulMatchId, move.moveNumber, move.col, realPlayerId]
+                            );
+                        }
+
+                    } else {
+                        // ==========================================
+                        // ⚔️ LOGICĂ PENTRU MECIURI CLASICE 1v1
+                        // ==========================================
+                        let p1Id, p2Id;
+
+                        // Verificăm de unde provine meciul 1v1 ca să extragem ID-urile corect
+                        if (roomId.startsWith('room_private_')) {
+                            // Este o provocare directă
+                            const ids = roomId.replace('room_private_', '').split('_');
+                            p1Id = parseInt(ids[0]);
+                            p2Id = parseInt(ids[1]);
+                        } else {
+                            // Este matchmaking normal (Caută un meci 1v1)
+                            const ids = roomId.replace('room_', '').split('_');
+                            p1Id = parseInt(ids[0]);
+                            p2Id = parseInt(ids[1]);
+                        }
+
+                        realWinnerId = result.win ? (game.winner === 1 ? p1Id : p2Id) : null;
+
+                        // Creăm meciul în baza de date
+                        const matchResult = await pool.query(
+                            `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status)
+                             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                            [p1Id, p2Id, realWinnerId, game.moveCount, result.win ? 'finished' : 'draw']
+                        );
+                        noulMatchId = matchResult.rows[0].id;
+
+                        // SALVĂM ISTORICUL MUTĂRILOR (Pentru ca Replay-ul să funcționeze pe 1v1)
+                        for (const move of game.moveHistory) {
+                            const realPlayerId = move.playerIndex === 1 ? p1Id : p2Id;
+                            await pool.query(
+                                `INSERT INTO moves (match_id, move_order, col_index, player_id)
+                                 VALUES ($1, $2, $3, $4)`,
+                                [noulMatchId, move.moveNumber, move.col, realPlayerId]
+                            );
+                        }
                     }
 
-                    console.log(`Meciul #${noulMatchId} și cele ${game.moveCount} mutări au fost salvate cu succes!`);
+                    console.log(`✅ Meciul #${noulMatchId} a fost salvat cu succes în baza de date!`);
 
                 } catch (dbError) {
                     console.error("Eroare la salvarea meciului/mutărilor:", dbError);
                 }
-                io.to(roomId).emit('game_over', { winner: game.winner });
-                io.to(roomId).emit('match_ended', {
-                    status: result.win ? 'finished' : 'draw',
-                    winner: game.winner
-                });
+
+                io.to(roomId).emit('game_over', {winner: game.winner});
+                io.to(roomId).emit('match_ended', {status: result.win ? 'finished' : 'draw', winner: game.winner});
                 activeGames.delete(roomId);
             }
         }
@@ -524,6 +632,7 @@ io.on('connection', (socket) => {
                 for (const s of socketsInRoom) {
                     const sDbId = (s as any).databaseId;
                     const yourPlayerId = (sDbId === p1Id) ? 1 : 2;
+                    console.log(`[BACKEND] 🎮 User-ul DB_ID: ${sDbId} primește rolul de Player ${yourPlayerId}`);
                     s.emit('game_started', { ...startData, yourPlayerId });
                 }
             } else {
