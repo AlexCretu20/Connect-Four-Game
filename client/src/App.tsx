@@ -7,6 +7,8 @@ import {LeaderboardPage} from "./pages/LeaderboardPage.tsx";
 import { MatchHistoryPage } from './pages/MatchHistoryPage';
 import { ReplayPage } from './pages/ReplayPage';
 import { SpectatorPage } from './pages/SpectatorPage';
+import { TournamentsPage } from './pages/TournamentPage';
+import { TournamentBracketPage } from './pages/TournamentBracketPage';
 
 
 function App() {
@@ -30,6 +32,11 @@ function App() {
                 <Route path="/replay/:matchId" element={<ReplayPage />} />
 
                 <Route path="/spectate/:roomId" element={<SpectatorPage />} />
+
+                <Route path="/tournaments" element={<TournamentsPage />} />
+                <Route path="/tournaments/:id/bracket" element={<TournamentBracketPage />} />
+
+
             </Routes>
         </BrowserRouter>
     );

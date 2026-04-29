@@ -200,6 +200,10 @@ export const LobbyPage = () => {
                     </p>
                 )}
 
+                <button onClick={() => navigate('/tournaments')} className="submit-button" style={{ marginTop: '12px', backgroundColor: '#eab308', width: '100%', color: 'black' }}>
+                    Mergi la Turnee
+                </button>
+
                 {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
 
                 {isSearching ? (

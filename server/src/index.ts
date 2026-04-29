@@ -168,6 +168,136 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
+// rute turneu
+app.post('/api/create_tournament', async (req, res) => {
+    const { name, ownerId, maxPlayers } = req.body;
+
+    if (!name || !ownerId || !maxPlayers) {
+        return res.status(400).json({ error: "Date incomplete pentru crearea turneului." });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO tournaments (name, owner_id, max_players, status) 
+             VALUES ($1, $2, $3, 'pending') RETURNING *`,
+            [name, ownerId, maxPlayers]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error("Eroare la crearea turneului:", err);
+        res.status(500).json({ error: "Eroare internă de server." });
+    }
+});
+
+app.get('/api/see_tournaments', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.id, t.name, t.max_players, t.status, t.owner_id,
+                   u.username as owner_name,
+                   COUNT(tp.user_id) as current_players
+            FROM tournaments t
+            JOIN users u ON t.owner_id = u.id
+            LEFT JOIN tournament_participants tp ON t.id = tp.tournament_id
+            WHERE t.status IN ('pending', 'active')
+            GROUP BY t.id, u.username
+            ORDER BY t.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Eroare la fetch turnee:", err);
+        res.status(500).json({ error: "Eroare la aducerea turneelor." });
+    }
+});
+
+// 3. Înscrierea unui jucător și AUTO-START dacă se umple
+app.post('/api/join_tournament/:id', async (req, res) => {
+    const tournamentId = parseInt(req.params.id);
+    const { userId } = req.body;
+
+    try {
+        // 1. Verificăm situația curentă a turneului
+        const tResult = await pool.query(`
+            SELECT t.max_players, COUNT(tp.user_id) as current_players
+            FROM tournaments t
+                     LEFT JOIN tournament_participants tp ON t.id = tp.tournament_id
+            WHERE t.id = $1
+            GROUP BY t.id
+        `, [tournamentId]);
+
+        if (tResult.rows.length === 0) return res.status(404).json({ error: "Turneul nu există." });
+
+        const max_players = parseInt(tResult.rows[0].max_players);
+        const current_players = parseInt(tResult.rows[0].current_players);
+
+        if (current_players >= max_players) {
+            return res.status(400).json({ error: "Turneul este deja plin!" });
+        }
+
+        // 2. Înscriem jucătorul
+        await pool.query(
+            `INSERT INTO tournament_participants (tournament_id, user_id) VALUES ($1, $2)`,
+            [tournamentId, userId]
+        );
+
+        // 3. VERIFICĂM DACĂ S-A UMPLUT (SISTEMUL TĂU AUTO-START)
+        if (current_players + 1 === max_players) {
+            console.log(`Turneul ${tournamentId} s-a umplut! Generăm meciurile...`);
+
+            // Schimbăm statusul turneului în 'active'
+            await pool.query(`UPDATE tournaments SET status = 'active' WHERE id = $1`, [tournamentId]);
+
+            // Luăm toți jucătorii (acum sunt fix câți trebuie)
+            const pResult = await pool.query(`SELECT user_id FROM tournament_participants WHERE tournament_id = $1`, [tournamentId]);
+            const players = pResult.rows.map(row => row.user_id);
+
+            // Amestecăm jucătorii (Sistemul Random)
+            const shuffled = players.sort(() => 0.5 - Math.random());
+
+            // Generăm meciurile RUNDEI 1
+            for (let i = 0; i < shuffled.length; i += 2) {
+                await pool.query(
+                    `INSERT INTO matches (player1_id, player2_id, status, tournament_id, tournament_round) 
+                     VALUES ($1, $2, 'pending', $3, 1)`,
+                    [shuffled[i], shuffled[i + 1], tournamentId]
+                );
+            }
+            return res.json({ message: "Te-ai înscris! Ești ultimul jucător, turneul a început!" });
+        }
+
+        res.json({ message: "Te-ai înscris cu succes! Așteptăm să se umple locurile." });
+    } catch (err: any) {
+        if (err.code === '23505') {
+            return res.status(400).json({ error: "Ești deja înscris în acest turneu!" });
+        }
+        console.error("Eroare la înscriere/start:", err);
+        res.status(500).json({ error: "Eroare internă." });
+    }
+});
+
+// 4. Aducerea meciurilor (Bracket-ului) pentru un turneu
+app.get('/api/tournament/:id/bracket', async (req, res) => {
+    const tournamentId = parseInt(req.params.id);
+    try {
+        const result = await pool.query(`
+            SELECT m.id as match_id, m.status, m.tournament_round,
+                   u1.username as p1_name, u1.id as p1_id,
+                   u2.username as p2_name, u2.id as p2_id,
+                   w.username as winner_name
+            FROM matches m
+            LEFT JOIN users u1 ON m.player1_id = u1.id
+            LEFT JOIN users u2 ON m.player2_id = u2.id
+            LEFT JOIN users w ON m.winner_id = w.id
+            WHERE m.tournament_id = $1
+            ORDER BY m.tournament_round ASC, m.id ASC
+        `, [tournamentId]);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Eroare la aducerea bracket-ului:", err);
+        res.status(500).json({ error: "Eroare internă de server." });
+    }
+});
+
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
 
@@ -355,6 +485,55 @@ io.on('connection', (socket) => {
                 activeGames.delete(roomId);
             }
         }
+    });
+
+    socket.on('join_tournament_match', async (data: { matchId: number, userId: number }) => {
+        console.log(`\n--- START LOG TURNEU ---`);
+        console.log(`[BACKEND] Jucătorul (ID: ${data.userId}) vrea să intre în meciul #${data.matchId}`);
+
+        const roomId = `room_tourney_${data.matchId}`;
+        socket.join(roomId);
+        (socket as any).currentRoom = roomId;
+
+        try {
+            const mResult = await pool.query('SELECT player1_id, player2_id FROM matches WHERE id = $1', [data.matchId]);
+            if (mResult.rows.length === 0) {
+                console.log(`[BACKEND] ❌ EROARE: Meciul ${data.matchId} nu există în baza de date!`);
+                return;
+            }
+
+            const p1Id = mResult.rows[0].player1_id;
+
+            if (!activeGames.has(roomId)) {
+                console.log(`[BACKEND] 🆕 Creăm o nouă tablă de Connect4 pentru camera ${roomId}`);
+                activeGames.set(roomId, new ConnectFourGame());
+            }
+
+            const socketsInRoom = await io.in(roomId).fetchSockets();
+            console.log(`[BACKEND] 👥 În camera ${roomId} sunt acum ${socketsInRoom.length} jucători.`);
+
+            if (socketsInRoom.length === 2) {
+                console.log(`[BACKEND] 🎉 Amândoi sunt gata! TRIMITEM SEMNALUL DE START!`);
+                const game = activeGames.get(roomId)!;
+                const startData = {
+                    roomId,
+                    startingPlayer: game.currentPlayer,
+                    initialBoard: game.getBoard()
+                };
+
+                for (const s of socketsInRoom) {
+                    const sDbId = (s as any).databaseId;
+                    const yourPlayerId = (sDbId === p1Id) ? 1 : 2;
+                    s.emit('game_started', { ...startData, yourPlayerId });
+                }
+            } else {
+                console.log(`[BACKEND] ⏳ Un jucător așteaptă. Îi trimit mesajul de "Așteptare..."`);
+                socket.emit('waiting_for_tournament_opponent', { message: 'Așteptăm ca adversarul tău să dea click pe Joacă...' });
+            }
+        } catch (err) {
+            console.error("[BACKEND] ❌ Eroare gravă:", err);
+        }
+        console.log(`--- END LOG TURNEU ---\n`);
     });
 
     socket.on('disconnect', () => {
