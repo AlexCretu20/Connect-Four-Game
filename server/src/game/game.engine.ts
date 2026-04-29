@@ -1,17 +1,19 @@
 export class ConnectFourGame {
     private board: number[][];
-    public currentPlayer: number;
+    public currentPlayer: 1 | 2;
     public winner: number | null = null;
     private readonly ROWS = 6;
     private readonly COLS = 7;
     public moveCount: number = 0;
+    public firstMoverId: 1 | 2;
 
     // salvam istoric mutari
     public moveHistory: { moveNumber: number, col: number, playerIndex: number }[] = [];
 
-    constructor() {
+    constructor(firstPlayer: 1 | 2 = 1) {
         this.board = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(0));
-        this.currentPlayer = Math.random() < 0.5 ? 1 : 2;
+        this.currentPlayer = firstPlayer;
+        this.firstMoverId = firstPlayer;
     }
 
     public dropPiece(col: number): { success: boolean, row?: number, win?: boolean, draw?: boolean } {

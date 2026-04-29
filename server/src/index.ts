@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { pool } from './db/db';
 import { authRouter } from './auth/auth.router';
 import { ConnectFourGame } from './game/game.engine';
+import {determineFirstMover} from "./game/game.service";
 
 dotenv.config();
 
@@ -368,14 +369,15 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('accept_challenge', (data: { challengerId: number, myId: number }) => {
+    socket.on('accept_challenge', async (data: { challengerId: number, myId: number }) => {
         const challengerSocketId = onlineUsers.get(data.challengerId);
 
         if (challengerSocketId) {
             // Generăm numele camerei folosind cele două ID-uri
             const roomId = `room_private_${data.challengerId}_${data.myId}`;
 
-            const game = new ConnectFourGame();
+            const firstMover = await determineFirstMover(data.challengerId, data.myId);
+            const game = new ConnectFourGame(firstMover);
             activeGames.set(roomId, game);
 
             // Jucătorul care acceptă intră în cameră
@@ -410,7 +412,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('find_match', (data: { userId: number }) => {
+    socket.on('find_match', async (data: { userId: number }) => {
         (socket as any).databaseId = data.userId;
 
         // Verificăm dacă avem un adversar valid (ID diferit)
@@ -422,7 +424,8 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             waitingPlayer.join(roomId);
 
-            const game = new ConnectFourGame();
+            const firstMover = await determineFirstMover(p1Id, p2Id);
+            const game = new ConnectFourGame(firstMover);
             activeGames.set(roomId, game);
 
             // TRIMITEM DATELE COMPLETE, INCLUSIV TABLA INIȚIALĂ
@@ -587,9 +590,10 @@ io.on('connection', (socket) => {
 
                         // Creăm meciul în baza de date
                         const matchResult = await pool.query(
-                            `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status)
-                             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-                            [p1Id, p2Id, realWinnerId, game.moveCount, result.win ? 'finished' : 'draw']
+                            `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status, first_mover_id)
+                             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                            [p1Id, p2Id, realWinnerId, game.moveCount, result.win ? 'finished' : 'draw',
+                                game.firstMoverId === 1 ? p1Id : p2Id]
                         );
                         noulMatchId = matchResult.rows[0].id;
 
