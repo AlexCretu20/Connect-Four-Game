@@ -102,7 +102,6 @@ app.get('/api/matchesReplay/:id', async (req, res) => {
 });
 
 // ruta spectator
-// ruta spectator (REPARATĂ PENTRU TURNEE)
 app.get('/api/matchesLive', async (req, res) => {
     try {
         const liveMatches = [];
@@ -347,6 +346,30 @@ app.get('/api/tournaments/history', async (req, res) => {
     }
 });
 
+// (Leaderboard)
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                u.username,
+                COUNT(m.id) FILTER (WHERE m.status IN ('finished', 'draw')) as total_games,
+                COUNT(CASE WHEN m.winner_id = u.id THEN 1 END) as wins,
+                COUNT(CASE WHEN m.winner_id != u.id AND m.winner_id IS NOT NULL THEN 1 END) as losses,
+                COUNT(CASE WHEN m.status = 'draw' THEN 1 END) as draws,
+                ROUND(AVG(CASE WHEN m.winner_id = u.id THEN m.total_moves END), 1) as avg_moves_win
+            FROM users u
+            LEFT JOIN matches m ON (u.id = m.player1_id OR u.id = m.player2_id)
+            GROUP BY u.id, u.username
+            ORDER BY wins DESC, avg_moves_win ASC
+        `);
+        console.log("📈 Clasament generat și trimis către client!");
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Eroare la clasament:", err);
+        res.status(500).json({ error: "Eroare la server" });
+    }
+});
+
 io.on('connection', (socket) => {
     console.log(`A player connected: ${socket.id}`);
 
@@ -524,8 +547,11 @@ io.on('connection', (socket) => {
                         realWinnerId = result.win ? (game.winner === 1 ? player1_id : player2_id) : (Math.random() > 0.5 ? player1_id : player2_id);
 
                         // Salvăm cine a câștigat acest meci
-                        await pool.query('UPDATE matches SET winner_id = $1, total_moves = $2, status = $3 WHERE id = $4',
-                            [realWinnerId, game.moveCount, 'finished', noulMatchId]);
+                        await pool.query(
+                            'UPDATE matches SET winner_id = $1, total_moves = $2, status = $3, first_move_id = $4 WHERE id = $5',
+                            [realWinnerId, game.moveCount, 'finished',
+                                game.firstMoverId === 1 ? player1_id : player2_id, noulMatchId]
+                        );
 
                         // VERIFICĂM DACĂ RUNDA CURENTĂ S-A TERMINAT COMPLET
                         const pendingMatches = await pool.query(
@@ -590,7 +616,7 @@ io.on('connection', (socket) => {
 
                         // Creăm meciul în baza de date
                         const matchResult = await pool.query(
-                            `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status, first_mover_id)
+                            `INSERT INTO matches (player1_id, player2_id, winner_id, total_moves, status, first_move_id)
                              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
                             [p1Id, p2Id, realWinnerId, game.moveCount, result.win ? 'finished' : 'draw',
                                 game.firstMoverId === 1 ? p1Id : p2Id]
