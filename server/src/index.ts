@@ -106,59 +106,57 @@ app.get('/api/matchesLive', async (req, res) => {
     try {
         const liveMatches = [];
 
-        // Parcurgem toate camerele active
         for (const [roomId, game] of activeGames.entries()) {
             let p1Name = 'Jucător 1';
             let p2Name = 'Jucător 2';
+            let isTournament = false;
 
             if (roomId.startsWith('room_tourney_')) {
-                // ESTE MECI DE TURNEU (extragem ID-ul meciului)
+                // 🏆 MECI DE TURNEU
+                isTournament = true;
                 const matchId = parseInt(roomId.replace('room_tourney_', ''));
 
-                if (!isNaN(matchId)) {
-                    const result = await pool.query(`
-                        SELECT u1.username as p1_name, u2.username as p2_name 
-                        FROM matches m
-                        JOIN users u1 ON m.player1_id = u1.id
-                        JOIN users u2 ON m.player2_id = u2.id
-                        WHERE m.id = $1
-                    `, [matchId]);
+                const result = await pool.query(`
+                    SELECT u1.username as p1_name, u2.username as p2_name 
+                    FROM matches m
+                    JOIN users u1 ON m.player1_id = u1.id
+                    JOIN users u2 ON m.player2_id = u2.id
+                    WHERE m.id = $1
+                `, [matchId]);
 
-                    if (result.rows.length > 0) {
-                        p1Name = result.rows[0].p1_name;
-                        p2Name = result.rows[0].p2_name;
-                    }
+                if (result.rows.length > 0) {
+                    p1Name = result.rows[0].p1_name;
+                    p2Name = result.rows[0].p2_name;
                 }
             } else {
-                // ESTE MECI CLASIC 1v1 (room_1_2 sau room_private_1_2)
-                const cleanRoomId = roomId.replace('room_private_', '').replace('room_', '');
-                const ids = cleanRoomId.split('_');
+                // ⚔️ MECI 1v1 NORMAL
+                const cleanId = roomId.replace('room_private_', '').replace('room_', '');
+                const ids = cleanId.split('_');
                 const p1Id = parseInt(ids[0]);
                 const p2Id = parseInt(ids[1]);
 
-                if (!isNaN(p1Id) && !isNaN(p2Id)) {
-                    const result = await pool.query(
-                        `SELECT id, username FROM users WHERE id IN ($1, $2)`,
-                        [p1Id, p2Id]
-                    );
-                    const users = result.rows;
-                    p1Name = users.find(u => u.id === p1Id)?.username || 'Jucător 1';
-                    p2Name = users.find(u => u.id === p2Id)?.username || 'Jucător 2';
-                }
+                const result = await pool.query(
+                    `SELECT id, username FROM users WHERE id IN ($1, $2)`,
+                    [p1Id, p2Id]
+                );
+                const users = result.rows;
+                p1Name = users.find(u => u.id === p1Id)?.username || 'Jucător 1';
+                p2Name = users.find(u => u.id === p2Id)?.username || 'Jucător 2';
             }
 
             liveMatches.push({
                 roomId: roomId,
                 p1Name: p1Name,
                 p2Name: p2Name,
-                moveCount: game.moveCount
+                moveCount: game.moveCount,
+                type: isTournament ? 'Tournament' : '1v1' // 🔥 Trimitem tipul meciului
             });
         }
 
         res.json(liveMatches);
     } catch (err) {
-        console.error("Eroare la preluarea meciurilor live:", err);
-        res.status(500).json({ error: "Nu am putut încărca meciurile live." });
+        console.error("Eroare Live:", err);
+        res.status(500).json({ error: "Eroare la încărcarea meciurilor live." });
     }
 });
 
